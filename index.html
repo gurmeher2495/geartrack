@@ -491,6 +491,114 @@ function setMoveType(type) { /* single action only */ }
 
 // --- Init ---
 render();
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } 
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } 
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCqFhnvlvjs3XQM5PNecQsFt49A4qUvTsE",
+  authDomain: "geartrack1995.firebaseapp.com",
+  projectId: "geartrack1995",
+  storageBucket: "geartrack1995.firebasestorage.app",
+  messagingSenderId: "726049606513",
+  appId: "1:726049606513:web:b92218ef2c390f638a84d0"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+let items = [];
+let selectedItemId = null;
+let moveItemId = null;
+
+// Auto login
+onAuthStateChanged(auth, user => {
+  if (!user) {
+    signInWithEmailAndPassword(auth, "gurmeher24@gmail.com", "Badger19");
+  }
+});
+
+// Real-time sync
+onSnapshot(collection(db, "items"), snapshot => {
+  items = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+  render();
+});
+
+// ===== CREATE ITEM =====
+window.createItem = async function() {
+
+  const name = document.getElementById("new-name").value.trim();
+  const material = document.getElementById("new-material").value.trim();
+  const weight = document.getElementById("new-weight").value;
+  const notes = document.getElementById("new-notes").value.trim();
+
+  if (!name || !weight) {
+    alert("Please fill in Item Name and Weight.");
+    return;
+  }
+
+  await addDoc(collection(db, "items"), {
+    name,
+    material,
+    notes,
+    createdAt: new Date().toISOString(),
+    currentStage: "raw",
+    stages: {
+      raw: {
+        qty: Number(weight),
+        date: new Date().toISOString(),
+        rejects: 0,
+        note: notes
+      }
+    }
+  });
+};
+
+// ===== DELETE ITEM =====
+window.deleteItem = async function(id) {
+  if (!confirm("Delete this item?")) return;
+  await deleteDoc(doc(db, "items", id));
+};
+
+// ===== MOVE STAGE =====
+window.doMove = async function() {
+
+  const qty = Number(document.getElementById("modal-qty").value);
+  if (!qty || qty <= 0) {
+    alert("Enter valid quantity");
+    return;
+  }
+
+  const rejects = Number(document.getElementById("modal-reject").value) || 0;
+  const note = document.getElementById("modal-note").value.trim();
+  const dateVal = document.getElementById("modal-date").value;
+  const dateISO = dateVal ? new Date(dateVal).toISOString() : new Date().toISOString();
+
+  const item = items.find(i => i.id === moveItemId);
+  const stageOrder = ["raw","saw","forging","cnc","teeth","heat","grinding","packing"];
+  const currentIndex = stageOrder.indexOf(item.currentStage);
+  const nextStageId = stageOrder[currentIndex + 1];
+
+  await updateDoc(doc(db, "items", moveItemId), {
+    currentStage: nextStageId,
+    [stages.${nextStageId}]: {
+      qty,
+      date: dateISO,
+      rejects,
+      note
+    }
+  });
+
+};
+
 </script>
 </body>
 </html
