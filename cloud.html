@@ -33,136 +33,254 @@ button {
 
 <body>
 
-<header>GearTrack Cloud</header>
+<style>
+body{
+  margin:0;
+  font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial;
+  background:#f5f7fb;
+  color:#1f2937;
+}
+
+header{
+  background:white;
+  padding:18px 25px;
+  font-size:20px;
+  font-weight:600;
+  box-shadow:0 2px 10px rgba(0,0,0,0.05);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+nav button{
+  background:none;
+  border:none;
+  font-size:15px;
+  margin-left:15px;
+  cursor:pointer;
+  color:#4b5563;
+}
+
+nav button.active{
+  color:#2563eb;
+  font-weight:600;
+}
+
+.container{
+  padding:25px;
+  max-width:1100px;
+  margin:auto;
+}
+
+.card{
+  background:white;
+  padding:18px;
+  border-radius:14px;
+  box-shadow:0 4px 20px rgba(0,0,0,0.05);
+  margin-bottom:15px;
+}
+
+input, textarea{
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #e5e7eb;
+  margin:6px 0 12px 0;
+}
+
+button.primary{
+  background:#2563eb;
+  color:white;
+  border:none;
+  padding:10px 16px;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+button.danger{
+  background:#ef4444;
+  color:white;
+  border:none;
+  padding:8px 12px;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+.stage-badge{
+  display:inline-block;
+  padding:4px 10px;
+  border-radius:20px;
+  font-size:12px;
+  background:#e0e7ff;
+  color:#3730a3;
+  margin-top:5px;
+}
+
+.small{
+  font-size:12px;
+  color:#6b7280;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:15px;
+}
+
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.4);
+  display:none;
+  justify-content:center;
+  align-items:center;
+}
+
+.modal-content{
+  background:white;
+  padding:20px;
+  border-radius:12px;
+  width:90%;
+  max-width:400px;
+}
+</style>
+
+<header>
+  GearTrack Cloud
+  <nav>
+    <button onclick="showTab('dashboard')" id="tab-dashboard" class="active">Dashboard</button>
+    <button onclick="showTab('items')" id="tab-items">Items</button>
+  </nav>
+</header>
 
 <div class="container">
 
+<!-- LOGIN -->
 <div id="loginBox">
-<h3>Company Login</h3>
-<input id="email" placeholder="Company Email">
-<input id="password" type="password" placeholder="Password">
-<button onclick="login()">Login</button>
+  <div class="card">
+    <h3>Company Login</h3>
+    <input id="email" placeholder="Company Email">
+    <input id="password" type="password" placeholder="Password">
+    <button class="primary" onclick="login()">Login</button>
+  </div>
 </div>
 
+<!-- APP -->
 <div id="app" style="display:none;">
 
-<h3>Create Item</h3>
-<input id="name" placeholder="Item Name">
-<input id="material" placeholder="Material">
-<input id="qty" placeholder="Quantity">
-<textarea id="notes" placeholder="Notes"></textarea>
-<button onclick="createItem()">Create Item</button>
+  <!-- DASHBOARD -->
+  <div id="dashboardTab">
+    <div class="grid">
+      <div class="card">
+        <h4>Total Items</h4>
+        <div id="totalItems" style="font-size:22px;font-weight:600;">0</div>
+      </div>
+      <div class="card">
+        <h4>Finished</h4>
+        <div id="finishedCount" style="font-size:22px;font-weight:600;">0</div>
+      </div>
+    </div>
+  </div>
 
-<h3>Items</h3>
-<div id="items"></div>
+  <!-- ITEMS -->
+  <div id="itemsTab" style="display:none;">
+
+    <div class="card">
+      <h3>Create Item</h3>
+      <input id="name" placeholder="Item Name">
+      <input id="material" placeholder="Material">
+      <input id="qty" placeholder="Quantity">
+      <textarea id="notes" placeholder="Notes"></textarea>
+      <button class="primary" onclick="createItem()">Create Item</button>
+    </div>
+
+    <div id="items" class="grid"></div>
+
+  </div>
 
 </div>
+</div>
 
+<!-- MOVE MODAL -->
+<div class="modal" id="moveModal">
+  <div class="modal-content">
+    <h3>Move to Next Stage</h3>
+    <input id="moveQty" placeholder="Quantity">
+    <input id="moveRejects" placeholder="Rejects">
+    <textarea id="moveNote" placeholder="Note"></textarea>
+    <button class="primary" onclick="confirmMove()">Confirm</button>
+  </div>
 </div>
 
 <script>
+let currentMoveId = null;
+let currentMoveStage = null;
 
-// 🔥 YOUR FIREBASE CONFIG
-const firebaseConfig = {
-  apiKey: "AIzaSyCqFhnvlvjs3XQM5PNecQsFt49A4qUvTsE",
-  authDomain: "geartrack1995.firebaseapp.com",
-  projectId: "geartrack1995",
-  storageBucket: "geartrack1995.firebasestorage.app",
-  messagingSenderId: "726049606513",
-  appId: "1:726049606513:web:b92218ef2c390f638a84d0"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
-
-const stages = ["Raw","Cutting","Heat Treatment","Grinding","Finished"];
-
-function login(){
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-  auth.signInWithEmailAndPassword(email,password)
-    .catch(e=>alert(e.message));
+function showTab(tab){
+  document.getElementById("dashboardTab").style.display = tab==="dashboard"?"block":"none";
+  document.getElementById("itemsTab").style.display = tab==="items"?"block":"none";
+  document.getElementById("tab-dashboard").classList.toggle("active",tab==="dashboard");
+  document.getElementById("tab-items").classList.toggle("active",tab==="items");
 }
 
-auth.onAuthStateChanged(user=>{
-  if(user){
-    document.getElementById("loginBox").style.display="none";
-    document.getElementById("app").style.display="block";
-    listenItems();
-  }
-});
-
-function createItem(){
-  const name = document.getElementById("name").value;
-  const material = document.getElementById("material").value;
-  const qty = Number(document.getElementById("qty").value);
-  const notes = document.getElementById("notes").value;
-
-  if(!name || !qty) return alert("Fill required fields");
-
-  db.collection("items").add({
-    name,
-    material,
-    currentStage:"Raw",
-    history:{
-      Raw:{
-        qty,
-        rejects:0,
-        note:notes,
-        date:new Date().toISOString()
-      }
-    },
-    createdAt:new Date()
-  });
+function openMoveModal(id,nextStage){
+  currentMoveId = id;
+  currentMoveStage = nextStage;
+  document.getElementById("moveModal").style.display="flex";
 }
 
-function moveItem(id,nextStage){
-  const qty = prompt("Enter Quantity:");
-  const rejects = prompt("Rejects:");
-  const note = prompt("Note:");
+function confirmMove(){
+  const qty = Number(document.getElementById("moveQty").value);
+  const rejects = Number(document.getElementById("moveRejects").value||0);
+  const note = document.getElementById("moveNote").value;
 
-  db.collection("items").doc(id).update({
-    currentStage: nextStage,
-    ["history."+nextStage]:{
-      qty:Number(qty),
-      rejects:Number(rejects||0),
-      note:note||"",
+  db.collection("items").doc(currentMoveId).update({
+    currentStage: currentMoveStage,
+    ["history."+currentMoveStage]:{
+      qty,
+      rejects,
+      note,
       date:new Date().toISOString()
     }
   });
+
+  document.getElementById("moveModal").style.display="none";
 }
 
-function deleteItem(id){
-  if(confirm("Delete item?")){
-    db.collection("items").doc(id).delete();
-  }
-}
+function renderItems(snapshot){
+  const container = document.getElementById("items");
+  container.innerHTML="";
+  let finished=0;
 
-function listenItems(){
-  db.collection("items").orderBy("createdAt","desc")
-    .onSnapshot(snapshot=>{
-      const container = document.getElementById("items");
-      container.innerHTML="";
-      snapshot.forEach(doc=>{
-        const data = doc.data();
-        container.innerHTML += `
-          <div class="card">
-            <b>${data.name}</b><br>
-            ${data.material||""}<br>
-            <div class="stage">Stage: ${data.currentStage}</div>
-            <div class="small">Created: ${new Date(data.createdAt.seconds*1000).toLocaleString()}</div>
-            <button onclick="moveItem('${doc.id}','Cutting')">→ Cutting</button>
-            <button onclick="moveItem('${doc.id}','Heat Treatment')">→ Heat</button>
-            <button onclick="moveItem('${doc.id}','Grinding')">→ Grinding</button>
-            <button onclick="moveItem('${doc.id}','Finished')">→ Finished</button>
-            <button onclick="deleteItem('${doc.id}')">Delete</button>
-          </div>
-        `;
-      });
-    });
-}
+  snapshot.forEach(doc=>{
+    const data = doc.data();
+    if(data.currentStage==="Finished") finished++;
 
+    container.innerHTML+=`
+      <div class="card">
+        <b>${data.name}</b><br>
+        ${data.material||""}
+        <div class="stage-badge">${data.currentStage}</div>
+        <div class="small">${new Date(data.createdAt.seconds*1000).toLocaleString()}</div>
+        <br>
+        <button class="primary" onclick="openMoveModal('${doc.id}','Cutting')">→ Cutting</button>
+        <button class="primary" onclick="openMoveModal('${doc.id}','Heat Treatment')">→ Heat</button>
+        <button class="primary" onclick="openMoveModal('${doc.id}','Grinding')">→ Grinding</button>
+        <button class="primary" onclick="openMoveModal('${doc.id}','Finished')">→ Finished</button>
+        <button class="danger" onclick="deleteItem('${doc.id}')">Delete</button>
+      </div>
+    `;
+  });
+
+  document.getElementById("totalItems").innerText=snapshot.size;
+  document.getElementById("finishedCount").innerText=finished;
+}
+  // REALTIME LISTENER
+db.collection("items")
+  .orderBy("createdAt","desc")
+  .onSnapshot(snapshot=>{
+    renderItems(snapshot);
+  });
 </script>
 
 </body>
