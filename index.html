@@ -124,6 +124,9 @@
   /* Hidden */
   .hidden { display: none !important; }
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 </head>
 <body>
 
@@ -188,6 +191,35 @@
 </div>
 
 <script>
+ // ===== FIREBASE INIT =====
+ db.collection("items").onSnapshot(snapshot => {
+  items = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+  render();
+});
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCqFhnvlvjs3XQM5PNecQsFt49A4qUvTsE",
+  authDomain: "geartrack1995.firebaseapp.com",
+  projectId: "geartrack1995",
+  storageBucket: "geartrack1995.firebasestorage.app",
+  messagingSenderId: "726049606513",
+  appId: "1:726049606513:web:b92218ef2c390f638a84d0"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+// Auto login
+auth.onAuthStateChanged(user => {
+  if (!user) {
+    auth.signInWithEmailAndPassword("gurmeher24@gmail.com", "Badger19");
+  }
+});
 const STAGES = [
   { id: "raw",      label: "Raw Material",  unit: "Kg",  icon: "⬛", color: "#94a3b8" },
   { id: "saw",      label: "Saw Cutting",    unit: "Pcs", icon: "🔪", color: "#f59e0b" },
@@ -209,21 +241,12 @@ function fmt(iso) {
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
 // --- State ---
-let items = JSON.parse(localStorage.getItem("gf-items") || "[]");
-let log   = JSON.parse(localStorage.getItem("gf-log")   || "[]");
+let items = [];
+let log = [];
 let currentView = "dashboard";
 let selectedItemId = null;
 let moveItemId = null;
 
-function persist() {
-  localStorage.setItem("gf-items", JSON.stringify(items));
-  localStorage.setItem("gf-log",   JSON.stringify(log));
-  // Flash saved badge
-  ["saved-badge","saved-badge-detail"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) { el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 1500); }
-  });
-}
 
 // --- Navigation ---
 function switchView(v) {
@@ -412,32 +435,43 @@ function renderDetail() {
 
 // --- Actions ---
 function createItem() {
+
   const name = document.getElementById("new-name").value.trim();
   const material = document.getElementById("new-material").value.trim();
   const weight = document.getElementById("new-weight").value;
   const notes = document.getElementById("new-notes").value.trim();
-  if (!name || !weight) { alert("Please fill in Item Name and Weight."); return; }
+
+  if (!name || !weight) {
+    alert("Please fill in Item Name and Weight.");
+    return;
+  }
 
   const item = {
-    id: genId(), name, material, notes,
+    name,
+    material,
+    notes,
     createdAt: new Date().toISOString(),
     currentStage: "raw",
-    stages: { raw: { qty: Number(weight), date: new Date().toISOString(), rejects: 0, note: notes } }
+    stages: {
+      raw: {
+        qty: Number(weight),
+        date: new Date().toISOString(),
+        rejects: 0,
+        note: notes
+      }
+    }
   };
-  items.unshift(item);
-  log.unshift({ id: genId(), itemId: item.id, itemName: item.name, from: null, to: "raw", qty: item.stages.raw.qty, rejects: 0, date: item.stages.raw.date, note: "Item created" });
-  persist();
+
+  db.collection("items").add(item);
+
   switchView("items");
 }
 
 function deleteItem(id) {
-  if (!confirm("Delete this item and all its history?")) return;
-  items = items.filter(i => i.id !== id);
-  log = log.filter(l => l.itemId !== id);
-  persist();
-  closeDetail();
-}
+  if (!confirm("Delete this item permanently?")) return;
 
+  db.collection("items").doc(id).delete();
+}
 function openModal(id) {
   moveItemId = id;
   const item = items.find(i => i.id === id);
@@ -463,34 +497,37 @@ function closeModal() {
 }
 
 function doMove() {
-  const qty = Number(document.getElementById("modal-qty").value);
-  if (!qty || qty <= 0) { alert("Please enter a valid quantity."); return; }
-  const rejects = Number(document.getElementById("modal-reject").value) || 0;
-  const note = document.getElementById("modal-note").value.trim();
-  const dateVal = document.getElementById("modal-date").value;
-  const dateISO = dateVal ? new Date(dateVal).toISOString() : new Date().toISOString();
 
-  const itemIdx = items.findIndex(i => i.id === moveItemId);
-  const item = items[itemIdx];
-  const curIdx = STAGE_IDS.indexOf(item.currentStage);
-  const nextStageId = STAGE_IDS[curIdx + 1];
+  const qty = Number(document.getElementById("move-qty").value);
+  const rejects = Number(document.getElementById("move-rejects").value || 0);
+  const note = document.getElementById("move-note").value.trim();
+  const dateISO = new Date().toISOString();
 
-  const updated = {
-    ...item,
+  if (!qty) {
+    alert("Enter quantity.");
+    return;
+  }
+
+  db.collection("items").doc(moveItemId).update({
     currentStage: nextStageId,
-    stages: { ...item.stages, [nextStageId]: { qty, date: dateISO, rejects, note } }
-  };
-  items[itemIdx] = updated;
-  log.unshift({ id: genId(), itemId: item.id, itemName: item.name, from: item.currentStage, to: nextStageId, qty, rejects, date: dateISO, note });
-  persist();
+    ["stages." + nextStageId]: {
+      qty,
+      date: dateISO,
+      rejects,
+      note
+    }
+  });
+
   closeModal();
-  if (selectedItemId === moveItemId) renderDetail();
 }
 
 function setMoveType(type) { /* single action only */ }
 
 // --- Init ---
 render();
+ // ===== FIREBASE SETUP =====
+
+// Load Firebase (compat version - safe for normal scripts)
 </script>
 </body>
 </html
