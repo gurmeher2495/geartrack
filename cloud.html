@@ -275,6 +275,80 @@ function renderItems(snapshot){
   document.getElementById("totalItems").innerText=snapshot.size;
   document.getElementById("finishedCount").innerText=finished;
 }
+
+// 🔥 FIREBASE CONFIG
+const firebaseConfig = {
+  apiKey: "AIzaSyCqFhnvlvjs3XQM5PNecQsFt49A4qUvTsE",
+  authDomain: "geartrack1995.firebaseapp.com",
+  projectId: "geartrack1995",
+  storageBucket: "geartrack1995.firebasestorage.app",
+  messagingSenderId: "726049606513",
+  appId: "G-SZ4NCDFGSB"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+// LOGIN
+function login(){
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  auth.signInWithEmailAndPassword(email,password)
+    .catch(error=>{
+      alert(error.message);
+    });
+}
+
+// LOGOUT (optional later)
+function logout(){
+  auth.signOut();
+}
+
+// AUTH STATE
+auth.onAuthStateChanged(user=>{
+  if(user){
+    document.getElementById("loginBox").style.display="none";
+    document.getElementById("app").style.display="block";
+  }else{
+    document.getElementById("loginBox").style.display="block";
+    document.getElementById("app").style.display="none";
+  }
+});
+
+// CREATE ITEM
+function createItem(){
+  const name=document.getElementById("name").value;
+  const material=document.getElementById("material").value;
+  const qty=Number(document.getElementById("qty").value);
+  const notes=document.getElementById("notes").value;
+
+  if(!name) return alert("Enter name");
+
+  db.collection("items").add({
+    name,
+    material,
+    qty,
+    notes,
+    currentStage:"Raw",
+    history:{},
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  document.getElementById("name").value="";
+  document.getElementById("material").value="";
+  document.getElementById("qty").value="";
+  document.getElementById("notes").value="";
+}
+
+// DELETE
+function deleteItem(id){
+  if(confirm("Delete this item?")){
+    db.collection("items").doc(id).delete();
+  }
+}
   // REALTIME LISTENER
 db.collection("items")
   .orderBy("createdAt","desc")
