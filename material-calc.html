@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0c12">
+<title>Material Calc</title>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc, serverTimestamp, query, orderBy }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey:            "AIzaSyCqFhnvlvjs3XQM5PNecQsFt49A4qUvTsE",
+    authDomain:        "geartrack1995.firebaseapp.com",
+    projectId:         "geartrack1995",
+    storageBucket:     "geartrack1995.firebasestorage.app",
+    messagingSenderId: "726049606513",
+    appId:             "1:726049606513:web:b92218ef2c390f638e84d0",
+    measurementId:     "G-SZ4NCDFGSB"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  window._fb = { db, collection, doc, onSnapshot, setDoc, deleteDoc, serverTimestamp, query, orderBy };
+</script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow:wght@700;900&display=swap');
+
+  :root {
+    --bg: #0a0c12;
+    --surface: #11131f;
+    --border: #1e2235;
+    --border2: #2a2d3a;
+    --text: #e8e8e8;
+    --muted: #666;
+    --accent: #ef4444;
+    --amber: #f59e0b;
+    --green: #00e5a0;
+    --blue: #00c2ff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'DM Mono', 'Courier New', monospace; background: var(--bg); color: var(--text); min-height: 100vh; max-width: 480px; margin: 0 auto; padding-bottom: 60px; }
+
+  /* Header */
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 15px 18px 12px; display: flex; justify-content: space-between; align-items: center; }
+  .logo { font-family: 'Barlow', sans-serif; font-size: 20px; font-weight: 900; letter-spacing: 3px; color: var(--accent); }
+  .subtitle { font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-top: 2px; }
+  .saved-badge { background: #00e5a022; color: var(--green); border: 1px solid #00e5a044; border-radius: 6px; padding: 4px 10px; font-size: 11px; opacity: 0; transition: opacity 0.3s; }
+  .saved-badge.show { opacity: 1; }
+  .sync-bar { text-align: center; font-size: 10px; color: var(--amber); letter-spacing: 2px; padding: 6px; background: #f59e0b11; display: none; }
+  .sync-bar.show { display: block; }
+
+  /* Nav */
+  .nav { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .nav-btn { flex: 1; padding: 12px 4px; background: none; border: none; color: var(--muted); font-size: 10px; cursor: pointer; letter-spacing: 0.5px; border-bottom: 2px solid transparent; font-family: inherit; text-align: center; }
+  .nav-btn.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+
+  /* Body */
+  .body { padding: 14px; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 14px; }
+  .card-title { font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: 2px; margin-bottom: 18px; }
+
+  /* Form */
+  label { display: block; font-size: 10px; color: #777; letter-spacing: 1px; margin-bottom: 5px; margin-top: 14px; }
+  input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 13px; color: var(--text); font-size: 14px; outline: none; font-family: inherit; }
+  input:focus { border-color: var(--accent)66; }
+  .margin-note { font-size: 10px; color: #555; margin-top: 5px; font-style: italic; }
+  .margin-note span { color: var(--amber); }
+
+  /* Results */
+  .result-box { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-top: 16px; }
+  .result-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .result-row:last-child { border-bottom: none; }
+  .result-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+  .result-val { font-size: 14px; font-weight: 700; }
+
+  /* Total box */
+  .total-box { background: linear-gradient(135deg, #ef444411, #f59e0b11); border: 1px solid var(--accent)44; border-radius: 12px; padding: 18px; margin-top: 14px; text-align: center; }
+  .total-label { font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 6px; }
+  .total-val { font-size: 40px; font-weight: 700; color: var(--accent); font-family: 'Barlow', sans-serif; }
+  .total-unit { font-size: 16px; color: var(--amber); margin-left: 4px; }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+  .primary-btn { flex: 1; padding: 13px 0; background: var(--accent); color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; letter-spacing: 1px; }
+  .secondary-btn { flex: 1; padding: 13px 0; background: var(--green)22; color: var(--green); border: 1px solid var(--green)44; border-radius: 9px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .full-btn { width: 100%; padding: 13px 0; background: var(--accent); color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; letter-spacing: 1px; margin-top: 18px; }
+  .delete-btn { background: #ff444422; color: #ff4444; border: 1px solid #ff444433; border-radius: 6px; padding: 4px 10px; font-size: 10px; cursor: pointer; font-family: inherit; }
+  .load-btn { background: var(--accent)22; color: var(--accent); border: 1px solid var(--accent)44; border-radius: 6px; padding: 5px 12px; font-size: 11px; cursor: pointer; font-family: inherit; font-weight: 700; }
+
+  /* Saved item cards */
+  .item-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 15px; }
+  .item-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .item-name { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+  .item-sub { font-size: 11px; color: var(--muted); }
+  .chips { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 6px; }
+  .chip { background: #1e2235; border: 1px solid var(--border2); border-radius: 6px; padding: 3px 9px; font-size: 10px; color: #999; }
+  .chip.red   { color: var(--accent); border-color: var(--accent)44;  background: var(--accent)11; }
+  .chip.amber { color: var(--amber);  border-color: var(--amber)44;   background: var(--amber)11; }
+  .chip.green { color: var(--green);  border-color: var(--green)44;   background: var(--green)11; }
+  .chip.blue  { color: var(--blue);   border-color: var(--blue)44;    background: var(--blue)11; }
+
+  /* Search */
+  .search-box { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 10px 13px; color: var(--text); font-size: 13px; outline: none; font-family: inherit; margin-bottom: 14px; }
+  .search-box:focus { border-color: var(--accent)55; }
+
+  /* Preview strip */
+  .preview-strip { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 13px; margin-top: 12px; display: flex; justify-content: space-between; }
+  .preview-item { text-align: center; }
+  .preview-label { font-size: 9px; color: var(--muted); letter-spacing: 1px; margin-bottom: 4px; }
+  .preview-val { font-size: 13px; font-weight: 700; }
+
+  /* Formula box */
+  .formula-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; font-size: 10px; color: #555; line-height: 2; }
+  .formula-title { color: var(--amber); font-size: 11px; margin-bottom: 6px; letter-spacing: 1px; }
+
+  .section-title { font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 10px; }
+  .list { display: flex; flex-direction: column; gap: 10px; }
+  .empty { text-align: center; color: #444; padding: 50px 20px; line-height: 2; font-size: 13px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="header">
+    <div>
+      <div class="logo">MATERIAL CALC</div>
+      <div class="subtitle">Raw Steel Calculator · Round Bar</div>
+    </div>
+    <div class="saved-badge" id="saved-badge">✓ Synced</div>
+  </div>
+  <div class="sync-bar" id="sync-bar">⟳ SYNCING...</div>
+
+  <div class="nav">
+    <button class="nav-btn active" onclick="switchTab('calc')">🧮 Calculator</button>
+    <button class="nav-btn" onclick="switchTab('saved')">🗂 Saved Items</button>
+    <button class="nav-btn" onclick="switchTab('add')">＋ Save Item</button>
+  </div>
+
+  <div class="body">
+
+    <!-- ── CALCULATOR ── -->
+    <div id="tab-calc">
+      <div class="card">
+        <div class="card-title">⬛ STEEL WEIGHT CALCULATOR</div>
+
+        <label>Item Name (optional)</label>
+        <input type="text" id="calc-name" placeholder="e.g. Spur Gear 40T">
+
+        <label>Diameter (mm) *</label>
+        <input type="number" id="calc-dia" min="1" placeholder="e.g. 80" oninput="calculate()">
+        <div class="margin-note">+3 mm margin → effective: <span id="note-dia">—</span></div>
+
+        <label>Length (mm) *</label>
+        <input type="number" id="calc-len" min="1" placeholder="e.g. 120" oninput="calculate()">
+        <div class="margin-note">+2 mm wastage → effective: <span id="note-len">—</span></div>
+
+        <label>Quantity *</label>
+        <input type="number" id="calc-qty" min="1" placeholder="e.g. 100" oninput="calculate()">
+
+        <div class="result-box">
+          <div class="result-row">
+            <div class="result-label">EFFECTIVE DIAMETER</div>
+            <div class="result-val" style="color:var(--blue)" id="res-dia">—</div>
+          </div>
+          <div class="result-row">
+            <div class="result-label">EFFECTIVE LENGTH</div>
+            <div class="result-val" style="color:var(--blue)" id="res-len">—</div>
+          </div>
+          <div class="result-row">
+            <div class="result-label">WEIGHT PER PIECE</div>
+            <div class="result-val" style="color:var(--amber)" id="res-each">—</div>
+          </div>
+          <div class="result-row">
+            <div class="result-label">QUANTITY</div>
+            <div class="result-val" id="res-qty">—</div>
+          </div>
+        </div>
+
+        <div class="total-box">
+          <div class="total-label">TOTAL STEEL REQUIRED</div>
+          <div>
+            <span class="total-val" id="res-total">—</span>
+            <span class="total-unit" id="res-unit">kg</span>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="primary-btn" onclick="calculate()">Calculate</button>
+          <button class="secondary-btn" onclick="prefillSave()">＋ Save Item</button>
+        </div>
+      </div>
+
+      <div class="formula-box">
+        <div class="formula-title">FORMULA USED</div>
+        Weight (kg) = D² × L × 0.00000617<br>
+        D = Diameter + 3 mm &nbsp;|&nbsp; L = Length + 2 mm<br>
+        Based on steel density: 7.85 g/cm³
+      </div>
+    </div>
+
+    <!-- ── SAVED ITEMS ── -->
+    <div id="tab-saved" class="hidden">
+      <input class="search-box" type="text" id="search-input" placeholder="🔍  Search by name or material..." oninput="renderSaved()">
+      <div class="section-title">SAVED ITEMS — tap to load into calculator</div>
+      <div class="list" id="saved-list"></div>
+    </div>
+
+    <!-- ── SAVE NEW ITEM ── -->
+    <div id="tab-add" class="hidden">
+      <div class="card">
+        <div class="card-title">＋ SAVE NEW ITEM</div>
+
+        <label>Item Name *</label>
+        <input type="text" id="sn-name" placeholder="e.g. Spur Gear 40T">
+
+        <label>Material Grade</label>
+        <input type="text" id="sn-mat" placeholder="e.g. EN8, EN36, MS">
+
+        <label>Diameter (mm) *</label>
+        <input type="number" id="sn-dia" min="1" placeholder="e.g. 80" oninput="previewSave()">
+
+        <label>Length (mm) *</label>
+        <input type="number" id="sn-len" min="1" placeholder="e.g. 120" oninput="previewSave()">
+
+        <div class="preview-strip">
+          <div class="preview-item">
+            <div class="preview-label">EFF. DIAMETER</div>
+            <div class="preview-val" style="color:var(--blue)" id="pv-dia">—</div>
+          </div>
+          <div class="preview-item">
+            <div class="preview-label">EFF. LENGTH</div>
+            <div class="preview-val" style="color:var(--blue)" id="pv-len">—</div>
+          </div>
+          <div class="preview-item">
+            <div class="preview-label">WT / PIECE</div>
+            <div class="preview-val" style="color:var(--amber)" id="pv-wt">—</div>
+          </div>
+        </div>
+
+        <button class="full-btn" onclick="saveItem()">Save to Database</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Firebase refs ──
+let _db, _col, _doc, _setDoc, _deleteDoc, _query, _orderBy, _onSnapshot, _ts;
+let savedItems = [];
+let unsub = null;
+let currentTab = 'calc';
+
+// ── Steel formula ──
+// Weight (kg) = D² × L × 0.00000617
+function steelWeight(dia, len) {
+  const D = dia + 3;
+  const L = len + 2;
+  return { D, L, wt: D * D * L * 0.00000617 };
+}
+
+// ── Firestore listeners ──
+function startListeners() {
+  showSync(true);
+  const q = _query(_col(_db, 'mat-items'), _orderBy('name', 'asc'));
+  unsub = _onSnapshot(q, snap => {
+    savedItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderSaved();
+    showSync(false);
+    flashSaved();
+  }, err => { console.error(err); showSync(false); });
+}
+
+function showSync(on) { document.getElementById('sync-bar').classList.toggle('show', on); }
+function flashSaved() {
+  const el = document.getElementById('saved-badge');
+  if (el) { el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 1800); }
+}
+
+// ── Navigation ──
+function switchTab(t) {
+  currentTab = t;
+  ['calc','saved','add'].forEach(n =>
+    document.getElementById('tab-'+n).classList.toggle('hidden', n !== t)
+  );
+  document.querySelectorAll('.nav-btn').forEach((btn, i) =>
+    btn.classList.toggle('active', ['calc','saved','add'][i] === t)
+  );
+  if (t === 'saved') renderSaved();
+}
+
+// ── Calculator ──
+function calculate() {
+  const dia = parseFloat(document.getElementById('calc-dia').value) || 0;
+  const len = parseFloat(document.getElementById('calc-len').value) || 0;
+  const qty = parseFloat(document.getElementById('calc-qty').value) || 0;
+
+  document.getElementById('note-dia').textContent = dia ? (dia + 3) + ' mm' : '—';
+  document.getElementById('note-len').textContent = len ? (len + 2) + ' mm' : '—';
+
+  if (!dia || !len) {
+    ['res-dia','res-len','res-each','res-qty','res-total'].forEach(id =>
+      document.getElementById(id).textContent = '—'
+    );
+    return;
+  }
+
+  const { D, L, wt } = steelWeight(dia, len);
+  const total = wt * (qty || 1);
+
+  document.getElementById('res-dia').textContent  = D + ' mm';
+  document.getElementById('res-len').textContent  = L + ' mm';
+  document.getElementById('res-each').textContent = wt.toFixed(4) + ' kg';
+  document.getElementById('res-qty').textContent  = qty ? qty + ' pcs' : '1 pc';
+  document.getElementById('res-total').textContent = total.toFixed(3);
+  document.getElementById('res-unit').textContent  = 'kg';
+}
+
+// Prefill save tab from calculator
+function prefillSave() {
+  const name = document.getElementById('calc-name').value.trim();
+  const dia  = document.getElementById('calc-dia').value;
+  const len  = document.getElementById('calc-len').value;
+  switchTab('add');
+  setTimeout(() => {
+    if (name) document.getElementById('sn-name').value = name;
+    if (dia)  document.getElementById('sn-dia').value  = dia;
+    if (len)  document.getElementById('sn-len').value  = len;
+    previewSave();
+  }, 30);
+}
+
+// ── Save New Item ──
+function previewSave() {
+  const dia = parseFloat(document.getElementById('sn-dia')?.value) || 0;
+  const len = parseFloat(document.getElementById('sn-len')?.value) || 0;
+  if (!dia || !len) {
+    document.getElementById('pv-dia').textContent = '—';
+    document.getElementById('pv-len').textContent = '—';
+    document.getElementById('pv-wt').textContent  = '—';
+    return;
+  }
+  const { D, L, wt } = steelWeight(dia, len);
+  document.getElementById('pv-dia').textContent = D + ' mm';
+  document.getElementById('pv-len').textContent = L + ' mm';
+  document.getElementById('pv-wt').textContent  = wt.toFixed(4) + ' kg';
+}
+
+async function saveItem() {
+  const name = document.getElementById('sn-name').value.trim();
+  const mat  = document.getElementById('sn-mat').value.trim();
+  const dia  = parseFloat(document.getElementById('sn-dia').value) || 0;
+  const len  = parseFloat(document.getElementById('sn-len').value) || 0;
+
+  if (!name || !dia || !len) { alert('Please fill in Name, Diameter and Length.'); return; }
+
+  const { D, L, wt } = steelWeight(dia, len);
+  const id = name.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now().toString(36);
+
+  try {
+    showSync(true);
+    await _setDoc(_doc(_db, 'mat-items', id), {
+      name, material: mat, dia, len,
+      effDia: D, effLen: L,
+      wtPerPc: parseFloat(wt.toFixed(4)),
+      createdAt: _ts()
+    });
+    // Clear form
+    ['sn-name','sn-mat','sn-dia','sn-len'].forEach(fieldId => document.getElementById(fieldId).value = '');
+    previewSave();
+    switchTab('saved');
+  } catch(e) {
+    alert('Error saving: ' + e.message);
+    showSync(false);
+  }
+}
+
+// ── Saved Items ──
+function renderSaved() {
+  const search = (document.getElementById('search-input')?.value || '').toLowerCase();
+  const filtered = savedItems.filter(i =>
+    i.name.toLowerCase().includes(search) ||
+    (i.material || '').toLowerCase().includes(search)
+  );
+
+  if (filtered.length === 0) {
+    document.getElementById('saved-list').innerHTML =
+      '<div class="empty">No saved items yet.<br>Go to ＋ Save Item to add one.</div>';
+    return;
+  }
+
+  document.getElementById('saved-list').innerHTML = filtered.map(item => `
+    <div class="item-card">
+      <div class="item-top">
+        <div>
+          <div class="item-name">${item.name}</div>
+          <div class="item-sub">${item.material || 'No material specified'}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="load-btn" onclick="loadItem('${item.id}')">Load</button>
+          <button class="delete-btn" onclick="deleteItem('${item.id}')">✕</button>
+        </div>
+      </div>
+      <div class="chips">
+        <div class="chip blue">⌀ ${item.dia} mm → ${item.effDia} mm</div>
+        <div class="chip blue">↕ ${item.len} mm → ${item.effLen} mm</div>
+        <div class="chip amber">⚖ ${item.wtPerPc} kg/pc</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function loadItem(id) {
+  const item = savedItems.find(i => i.id === id);
+  if (!item) return;
+  document.getElementById('calc-name').value = item.name;
+  document.getElementById('calc-dia').value  = item.dia;
+  document.getElementById('calc-len').value  = item.len;
+  document.getElementById('calc-qty').value  = '';
+  calculate();
+  switchTab('calc');
+  // scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function deleteItem(id) {
+  if (!confirm('Delete this saved item?')) return;
+  try {
+    showSync(true);
+    await _deleteDoc(_doc(_db, 'mat-items', id));
+  } catch(e) {
+    alert('Error deleting: ' + e.message);
+    showSync(false);
+  }
+}
+
+// ── Bootstrap ──
+function waitForFirebase() {
+  const fb = window._fb;
+  if (!fb) { setTimeout(waitForFirebase, 100); return; }
+
+  _db        = fb.db;
+  _col       = fb.collection;
+  _doc       = fb.doc;
+  _setDoc    = fb.setDoc;
+  _deleteDoc = fb.deleteDoc;
+  _query     = fb.query;
+  _orderBy   = fb.orderBy;
+  _onSnapshot= fb.onSnapshot;
+  _ts        = fb.serverTimestamp;
+
+  startListeners();
+}
+
+waitForFirebase();
+</script>
+</body>
+</html>
