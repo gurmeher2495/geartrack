@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0c12">
+<title>Material Calc</title>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc, serverTimestamp, query, orderBy }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  const firebaseConfig = {
+    apiKey:"AIzaSyCqFhnvlvjs3XQM5PNecQsFt49A4qUvTsE", authDomain:"geartrack1995.firebaseapp.com",
+    projectId:"geartrack1995", storageBucket:"geartrack1995.firebasestorage.app",
+    messagingSenderId:"726049606513", appId:"1:726049606513:web:b92218ef2c390f638e84d0"
+  };
+  const app=initializeApp(firebaseConfig), db=getFirestore(app);
+  window._fb={db,collection,doc,onSnapshot,setDoc,deleteDoc,serverTimestamp,query,orderBy};
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow:wght@700;900&display=swap');
+:root{--bg:#0a0c12;--surface:#11131f;--border:#1e2235;--border2:#2a2d3a;--text:#e8e8e8;--muted:#666;--accent:#ef4444;--amber:#f59e0b;--green:#00e5a0;--blue:#00c2ff;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'DM Mono','Courier New',monospace;background:var(--bg);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto;padding-bottom:60px;}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:15px 18px 12px;display:flex;justify-content:space-between;align-items:center;}
+.logo{font-family:'Barlow',sans-serif;font-size:20px;font-weight:900;letter-spacing:3px;color:var(--accent);}
+.subtitle{font-size:10px;color:var(--muted);letter-spacing:2px;margin-top:2px;}
+.saved-badge{background:#00e5a022;color:var(--green);border:1px solid #00e5a044;border-radius:6px;padding:4px 10px;font-size:11px;opacity:0;transition:opacity 0.3s;}
+.saved-badge.show{opacity:1;}
+.sync-bar{text-align:center;font-size:10px;color:var(--amber);letter-spacing:2px;padding:6px;background:#f59e0b11;display:none;}
+.sync-bar.show{display:block;}
+.nav{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.nav::-webkit-scrollbar{display:none;}
+.nav-btn{flex-shrink:0;padding:11px 10px;background:none;border:none;color:var(--muted);font-size:10px;cursor:pointer;letter-spacing:0.5px;border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit;}
+.nav-btn.active{color:var(--accent);border-bottom:2px solid var(--accent);}
+.body{padding:14px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px;}
+.card-title{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:2px;margin-bottom:16px;}
+label{display:block;font-size:10px;color:#777;letter-spacing:1px;margin-bottom:5px;margin-top:13px;}
+input,select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 13px;color:var(--text);font-size:14px;outline:none;font-family:inherit;appearance:none;-webkit-appearance:none;}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:36px;}
+input:focus,select:focus{border-color:var(--accent)66;}
+select option{background:#11131f;}
+
+/* Toggle switch for Forged/Raw */
+.toggle-row{display:flex;gap:8px;margin-top:13px;margin-bottom:4px;}
+.toggle-btn{flex:1;padding:10px 0;border-radius:9px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--bg);color:var(--muted);transition:all 0.15s;}
+.toggle-btn.active-raw{background:var(--amber)22;color:var(--amber);border-color:var(--amber)66;}
+.toggle-btn.active-forged{background:#8b5cf622;color:#8b5cf6;border-color:#8b5cf666;}
+
+.margin-note{font-size:10px;color:#555;margin-top:4px;font-style:italic;}
+.margin-note span{color:var(--amber);}
+
+.result-box{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:13px;margin-top:14px;}
+.result-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);}
+.result-row:last-child{border-bottom:none;}
+.result-label{font-size:10px;color:var(--muted);letter-spacing:1px;}
+.result-val{font-size:13px;font-weight:700;}
+
+.total-box{background:linear-gradient(135deg,#ef444411,#f59e0b11);border:1px solid var(--accent)44;border-radius:12px;padding:16px;margin-top:13px;text-align:center;}
+.total-label{font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:5px;}
+.total-val{font-size:38px;font-weight:700;color:var(--accent);font-family:'Barlow',sans-serif;}
+.total-unit{font-size:15px;color:var(--amber);margin-left:4px;}
+
+.btn-row{display:flex;gap:10px;margin-top:14px;}
+.primary-btn{flex:1;padding:12px 0;background:var(--accent);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:1px;}
+.secondary-btn{flex:1;padding:12px 0;background:var(--green)22;color:var(--green);border:1px solid var(--green)44;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+.full-btn{width:100%;padding:12px 0;background:var(--accent);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:1px;margin-top:16px;}
+
+/* Saved items */
+.item-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;}
+.item-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.item-name{font-size:14px;font-weight:700;margin-bottom:2px;}
+.item-sub{font-size:11px;color:var(--muted);}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
+.chip{background:#1e2235;border:1px solid var(--border2);border-radius:6px;padding:3px 9px;font-size:10px;color:#999;}
+.chip.red{color:var(--accent);border-color:var(--accent)44;background:var(--accent)11;}
+.chip.amber{color:var(--amber);border-color:var(--amber)44;background:var(--amber)11;}
+.chip.blue{color:var(--blue);border-color:var(--blue)44;background:var(--blue)11;}
+.chip.purple{color:#8b5cf6;border-color:#8b5cf644;background:#8b5cf611;}
+.load-btn{background:var(--accent)22;color:var(--accent);border:1px solid var(--accent)44;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:700;}
+.delete-btn{background:#ff444422;color:#ff4444;border:1px solid #ff444433;border-radius:6px;padding:4px 10px;font-size:10px;cursor:pointer;font-family:inherit;}
+
+/* Search */
+.search-box{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 13px;color:var(--text);font-size:13px;outline:none;font-family:inherit;margin-bottom:13px;appearance:none;}
+.search-box:focus{border-color:var(--accent)55;}
+
+/* Formula */
+.formula-box{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px;font-size:10px;color:#555;line-height:2;}
+.formula-title{color:var(--amber);font-size:11px;margin-bottom:5px;letter-spacing:1px;}
+
+/* Order tab */
+.order-line{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;gap:10px;align-items:flex-end;margin-bottom:8px;}
+.order-line-info{flex:1;}
+.order-line-name{font-size:12px;font-weight:700;margin-bottom:4px;}
+.order-line-detail{font-size:10px;color:var(--muted);}
+.order-line-wt{font-size:14px;font-weight:700;color:var(--accent);white-space:nowrap;}
+.order-line-remove{background:none;border:none;color:#555;font-size:16px;cursor:pointer;padding:0 4px;flex-shrink:0;}
+.order-total-box{background:linear-gradient(135deg,#ef444411,#f59e0b11);border:1px solid var(--accent)44;border-radius:12px;padding:18px;text-align:center;margin-top:4px;}
+.order-total-label{font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:6px;}
+.order-total-val{font-size:44px;font-weight:900;color:var(--accent);font-family:'Barlow',sans-serif;}
+.order-breakdown{background:var(--bg);border:1px solid var(--border);border-radius:9px;margin-top:12px;}
+.breakdown-row{display:flex;justify-content:space-between;padding:9px 13px;border-bottom:1px solid var(--border);font-size:11px;}
+.breakdown-row:last-child{border-bottom:none;}
+.breakdown-name{color:#aaa;flex:1;}
+.breakdown-qty{color:var(--muted);width:50px;text-align:center;}
+.breakdown-wt{color:var(--accent);font-weight:700;width:70px;text-align:right;}
+
+.section-title{font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:10px;}
+.list{display:flex;flex-direction:column;gap:10px;}
+.empty{text-align:center;color:#444;padding:50px 20px;line-height:2;font-size:13px;}
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="logo">MATERIAL CALC</div>
+    <div class="subtitle">Raw Steel Calculator · Round Bar</div>
+  </div>
+  <div class="saved-badge" id="saved-badge">✓ Synced</div>
+</div>
+<div class="sync-bar" id="sync-bar">⟳ SYNCING...</div>
+
+<div class="nav">
+  <button class="nav-btn active" onclick="switchTab('calc')">🧮 Calculator</button>
+  <button class="nav-btn" onclick="switchTab('order')">📋 Order</button>
+  <button class="nav-btn" onclick="switchTab('saved')">🗂 Saved Items</button>
+  <button class="nav-btn" onclick="switchTab('add')">＋ Save Item</button>
+</div>
+
+<div class="body">
+
+  <!-- CALCULATOR TAB -->
+  <div id="tab-calc">
+    <div class="card">
+      <div class="card-title">⬛ STEEL WEIGHT CALCULATOR</div>
+
+      <label>Select Item (optional)</label>
+      <select id="calc-item-select" onchange="onItemSelect()">
+        <option value="">— Manual Entry —</option>
+      </select>
+
+      <label>Material Type</label>
+      <input type="text" id="calc-material" placeholder="e.g. EN8, EN36, MS">
+
+      <label>Calculation Method</label>
+      <div class="toggle-row">
+        <button class="toggle-btn active-raw" id="btn-raw" onclick="setMethod('raw')">⬛ By Dimensions</button>
+        <button class="toggle-btn" id="btn-forged" onclick="setMethod('forged')">🔨 Forging Weight</button>
+      </div>
+
+      <!-- DIMENSION INPUTS -->
+      <div id="dim-inputs">
+        <label>Diameter (mm) *</label>
+        <input type="number" id="calc-dia" min="1" placeholder="e.g. 80" oninput="calculate()">
+        <div class="margin-note">+3 mm margin → effective: <span id="note-dia">—</span></div>
+
+        <label>Length (mm) *</label>
+        <input type="number" id="calc-len" min="1" placeholder="e.g. 120" oninput="calculate()">
+        <div class="margin-note">+5 mm wastage → effective: <span id="note-len">—</span></div>
+      </div>
+
+      <!-- FORGING WEIGHT INPUT -->
+      <div id="forging-inputs" class="hidden">
+        <label>Forging Weight Per Piece (kg) *</label>
+        <input type="number" id="calc-forge-wt" min="0.001" step="0.001" placeholder="e.g. 2.450" oninput="calculate()">
+        <div class="margin-note" style="color:#8b5cf6aa;">Forging weight entered directly — no dimension calculation.</div>
+      </div>
+
+      <label>Quantity *</label>
+      <input type="number" id="calc-qty" min="1" placeholder="e.g. 100" oninput="calculate()">
+
+      <div class="result-box" id="result-box" style="display:none;">
+        <div id="result-rows"></div>
+      </div>
+
+      <div class="total-box" id="total-box" style="display:none;">
+        <div class="total-label">TOTAL STEEL REQUIRED</div>
+        <div>
+          <span class="total-val" id="res-total">—</span>
+          <span class="total-unit">kg</span>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="primary-btn" onclick="calculate()">Calculate</button>
+        <button class="secondary-btn" onclick="addToOrder()">＋ Add to Order</button>
+      </div>
+    </div>
+
+    <div class="formula-box">
+      <div class="formula-title">FORMULA (By Dimensions)</div>
+      Weight (kg) = D² × L × 0.00000617<br>
+      D = Diameter + 3 mm &nbsp;|&nbsp; L = Length + 5 mm<br>
+      Based on steel density: 7.85 g/cm³
+    </div>
+  </div>
+
+  <!-- ORDER TAB -->
+  <div id="tab-order" class="hidden">
+    <div class="card">
+      <div class="card-title">📋 ORDER STEEL REQUIREMENT</div>
+
+      <div id="order-add-row">
+        <label>Add Item to Order</label>
+        <select id="order-item-select" onchange="onOrderItemSelect()">
+          <option value="">— Select a saved item —</option>
+        </select>
+
+        <div id="order-item-detail" class="hidden" style="margin-top:10px;">
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 13px;margin-bottom:2px;">
+            <div id="order-item-info" style="font-size:11px;color:#aaa;margin-bottom:8px;"></div>
+
+            <label style="margin-top:0;">Calculation Method</label>
+            <div class="toggle-row" style="margin-top:6px;">
+              <button class="toggle-btn active-raw" id="order-btn-raw" onclick="setOrderMethod('raw')">⬛ By Dimensions</button>
+              <button class="toggle-btn" id="order-btn-forged" onclick="setOrderMethod('forged')">🔨 Forging Weight</button>
+            </div>
+
+            <div id="order-dim-inputs">
+              <div style="display:flex;gap:8px;margin-top:10px;">
+                <div style="flex:1;"><label style="margin-top:0;">Dia (mm)</label><input type="number" id="order-dia" min="1" placeholder="Dia" oninput="calcOrderPreview()"></div>
+                <div style="flex:1;"><label style="margin-top:0;">Length (mm)</label><input type="number" id="order-len" min="1" placeholder="Len" oninput="calcOrderPreview()"></div>
+              </div>
+            </div>
+            <div id="order-forging-inputs" class="hidden">
+              <label style="margin-top:10px;">Forging Weight/pc (kg)</label>
+              <input type="number" id="order-forge-wt" min="0.001" step="0.001" placeholder="e.g. 2.450" oninput="calcOrderPreview()">
+            </div>
+
+            <label>Quantity</label>
+            <input type="number" id="order-qty" min="1" placeholder="Number of pieces" oninput="calcOrderPreview()">
+
+            <div id="order-preview" style="margin-top:8px;background:var(--accent)11;border:1px solid var(--accent)33;border-radius:7px;padding:9px 12px;display:none;">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">STEEL FOR THIS ITEM</div>
+              <div style="font-size:18px;font-weight:700;color:var(--accent);" id="order-preview-val">—</div>
+            </div>
+          </div>
+          <button class="full-btn" style="margin-top:8px;" onclick="addLineToOrder()">＋ Add to Order</button>
+        </div>
+      </div>
+
+      <div id="order-manual-row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:8px;">OR ADD MANUALLY</div>
+        <div style="display:flex;gap:8px;align-items:flex-end;">
+          <div style="flex:2;"><label style="margin-top:0;">Item Name</label><input type="text" id="manual-name" placeholder="Custom item..."></div>
+          <div style="flex:1;"><label style="margin-top:0;">Weight (kg)</label><input type="number" id="manual-wt" min="0" step="0.01" placeholder="0.0"></div>
+          <div style="flex:1;"><label style="margin-top:0;">Qty</label><input type="number" id="manual-qty" min="1" placeholder="1"></div>
+        </div>
+        <button class="full-btn" style="background:var(--blue);" onclick="addManualToOrder()">＋ Add Manual</button>
+      </div>
+    </div>
+
+    <!-- Order lines -->
+    <div id="order-lines-container" class="hidden">
+      <div class="section-title">ORDER LINES</div>
+      <div id="order-lines-list"></div>
+      <div class="order-total-box">
+        <div class="order-total-label">TOTAL STEEL FOR ORDER</div>
+        <div><span class="order-total-val" id="order-grand-total">0</span> <span style="font-size:18px;color:var(--amber);">kg</span></div>
+      </div>
+      <div class="order-breakdown" id="order-breakdown"></div>
+      <button class="full-btn" style="background:#ff444433;color:#ff4444;border:1px solid #ff444444;margin-top:10px;" onclick="clearOrder()">Clear Order</button>
+    </div>
+  </div>
+
+  <!-- SAVED ITEMS TAB -->
+  <div id="tab-saved" class="hidden">
+    <input class="search-box" type="text" id="search-input" placeholder="🔍  Search by name or material..." oninput="renderSaved()">
+    <div class="section-title">SAVED ITEMS</div>
+    <div class="list" id="saved-list"></div>
+  </div>
+
+  <!-- SAVE NEW ITEM TAB -->
+  <div id="tab-add" class="hidden">
+    <div class="card">
+      <div class="card-title">＋ SAVE NEW ITEM</div>
+
+      <label>Item Name *</label>
+      <input type="text" id="sn-name" placeholder="e.g. Spur Gear 40T">
+
+      <label>Material Grade</label>
+      <input type="text" id="sn-mat" placeholder="e.g. EN8, EN36, MS">
+
+      <label>Default Method</label>
+      <div class="toggle-row">
+        <button class="toggle-btn active-raw" id="sn-btn-raw" onclick="setSnMethod('raw')">⬛ By Dimensions</button>
+        <button class="toggle-btn" id="sn-btn-forged" onclick="setSnMethod('forged')">🔨 Forging Weight</button>
+      </div>
+
+      <div id="sn-dim-inputs">
+        <label>Diameter (mm) *</label>
+        <input type="number" id="sn-dia" min="1" placeholder="e.g. 80" oninput="previewSave()">
+        <label>Length (mm) *</label>
+        <input type="number" id="sn-len" min="1" placeholder="e.g. 120" oninput="previewSave()">
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 13px;margin-top:10px;display:flex;justify-content:space-between;">
+          <div style="text-align:center;"><div style="font-size:9px;color:var(--muted);margin-bottom:3px;">EFF. DIA</div><div style="font-size:13px;font-weight:700;color:var(--blue);" id="pv-dia">—</div></div>
+          <div style="text-align:center;"><div style="font-size:9px;color:var(--muted);margin-bottom:3px;">EFF. LEN</div><div style="font-size:13px;font-weight:700;color:var(--blue);" id="pv-len">—</div></div>
+          <div style="text-align:center;"><div style="font-size:9px;color:var(--muted);margin-bottom:3px;">WT/PC</div><div style="font-size:13px;font-weight:700;color:var(--amber);" id="pv-wt">—</div></div>
+        </div>
+      </div>
+
+      <div id="sn-forging-inputs" class="hidden">
+        <label>Default Forging Weight/pc (kg)</label>
+        <input type="number" id="sn-forge-wt" min="0.001" step="0.001" placeholder="e.g. 2.450">
+      </div>
+
+      <button class="full-btn" onclick="saveItem()">Save to Database</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let _db,_col,_doc,_setDoc,_deleteDoc,_query,_orderBy,_onSnapshot,_ts;
+let savedItems=[];
+let calcMethod='raw';   // 'raw' or 'forged'
+let snMethod='raw';
+let orderMethod='raw';
+let orderLines=[];      // [{name, wtPerPc, qty, totalWt, method}]
+let selectedOrderItemId=null;
+let currentTab='calc';
+let unsub=null;
+
+// Steel formula: D² × L × 0.00000617  (D=dia+3, L=len+5)
+function steelWeight(dia,len){
+  const D=dia+3, L=len+5;
+  return{D,L,wt:D*D*L*0.00000617};
+}
+
+// ---- Firebase ----
+function startListeners(){
+  showSync(true);
+  const q=_query(_col(_db,'mat-items'),_orderBy('name','asc'));
+  unsub=_onSnapshot(q,snap=>{
+    savedItems=snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderSaved();
+    populateDropdowns();
+    showSync(false);flashSaved();
+  },err=>{console.error(err);showSync(false);});
+}
+function showSync(on){document.getElementById('sync-bar').classList.toggle('show',on);}
+function flashSaved(){const el=document.getElementById('saved-badge');if(el){el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1800);}}
+
+function populateDropdowns(){
+  const opts=savedItems.map(i=>`<option value="${i.id}">${i.name}${i.material?' ('+i.material+')':''}</option>`).join('');
+  const blank='<option value="">— Manual Entry —</option>';
+  const blankOrder='<option value="">— Select a saved item —</option>';
+  const cs=document.getElementById('calc-item-select');
+  const os=document.getElementById('order-item-select');
+  if(cs)cs.innerHTML=blank+opts;
+  if(os)os.innerHTML=blankOrder+opts;
+}
+
+// ---- Tab ----
+function switchTab(t){
+  currentTab=t;
+  ['calc','order','saved','add'].forEach(n=>document.getElementById('tab-'+n).classList.toggle('hidden',n!==t));
+  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',['calc','order','saved','add'][i]===t));
+  if(t==='saved')renderSaved();
+}
+
+// ---- Calculator Tab ----
+function onItemSelect(){
+  const id=document.getElementById('calc-item-select').value;
+  if(!id){
+    document.getElementById('calc-material').value='';
+    document.getElementById('calc-dia').value='';
+    document.getElementById('calc-len').value='';
+    document.getElementById('calc-forge-wt').value='';
+    calculate(); return;
+  }
+  const item=savedItems.find(i=>i.id===id);
+  if(!item)return;
+  document.getElementById('calc-material').value=item.material||'';
+  if(item.method==='forged'||item.defaultMethod==='forged'){
+    setMethod('forged');
+    document.getElementById('calc-forge-wt').value=item.forgeWt||item.wtPerPc||'';
+  } else {
+    setMethod('raw');
+    document.getElementById('calc-dia').value=item.dia||'';
+    document.getElementById('calc-len').value=item.len||'';
+  }
+  calculate();
+}
+
+function setMethod(m){
+  calcMethod=m;
+  document.getElementById('dim-inputs').classList.toggle('hidden',m==='forged');
+  document.getElementById('forging-inputs').classList.toggle('hidden',m==='raw');
+  document.getElementById('btn-raw').className='toggle-btn'+(m==='raw'?' active-raw':'');
+  document.getElementById('btn-forged').className='toggle-btn'+(m==='forged'?' active-forged':'');
+  calculate();
+}
+
+function calculate(){
+  const qty=parseFloat(document.getElementById('calc-qty').value)||0;
+
+  if(calcMethod==='raw'){
+    const dia=parseFloat(document.getElementById('calc-dia').value)||0;
+    const len=parseFloat(document.getElementById('calc-len').value)||0;
+    document.getElementById('note-dia').textContent=dia?(dia+3)+' mm':'—';
+    document.getElementById('note-len').textContent=len?(len+5)+' mm':'—';
+    if(!dia||!len){hideResults();return;}
+    const{D,L,wt}=steelWeight(dia,len);
+    const total=wt*(qty||1);
+    document.getElementById('result-rows').innerHTML=`
+      <div class="result-row"><div class="result-label">EFF. DIAMETER</div><div class="result-val" style="color:var(--blue)">${D} mm</div></div>
+      <div class="result-row"><div class="result-label">EFF. LENGTH</div><div class="result-val" style="color:var(--blue)">${L} mm</div></div>
+      <div class="result-row"><div class="result-label">WEIGHT / PIECE</div><div class="result-val" style="color:var(--amber)">${wt.toFixed(4)} kg</div></div>
+      <div class="result-row"><div class="result-label">QUANTITY</div><div class="result-val">${qty||1} pcs</div></div>`;
+    document.getElementById('res-total').textContent=total.toFixed(3);
+  } else {
+    const wt=parseFloat(document.getElementById('calc-forge-wt').value)||0;
+    if(!wt){hideResults();return;}
+    const total=wt*(qty||1);
+    document.getElementById('result-rows').innerHTML=`
+      <div class="result-row"><div class="result-label">METHOD</div><div class="result-val" style="color:#8b5cf6">Forging Weight</div></div>
+      <div class="result-row"><div class="result-label">WEIGHT / PIECE</div><div class="result-val" style="color:var(--amber)">${wt.toFixed(4)} kg</div></div>
+      <div class="result-row"><div class="result-label">QUANTITY</div><div class="result-val">${qty||1} pcs</div></div>`;
+    document.getElementById('res-total').textContent=total.toFixed(3);
+  }
+
+  document.getElementById('result-box').style.display='block';
+  document.getElementById('total-box').style.display='block';
+}
+
+function hideResults(){
+  document.getElementById('result-box').style.display='none';
+  document.getElementById('total-box').style.display='none';
+}
+
+function addToOrder(){
+  const qty=parseFloat(document.getElementById('calc-qty').value)||0;
+  if(!qty){alert('Please enter a quantity first.');return;}
+
+  let name='Custom Item', wtPerPc=0, method=calcMethod;
+  const selId=document.getElementById('calc-item-select').value;
+  if(selId){const it=savedItems.find(i=>i.id===selId);if(it)name=it.name;}
+
+  if(calcMethod==='raw'){
+    const dia=parseFloat(document.getElementById('calc-dia').value)||0;
+    const len=parseFloat(document.getElementById('calc-len').value)||0;
+    if(!dia||!len){alert('Please enter Diameter and Length first.');return;}
+    wtPerPc=steelWeight(dia,len).wt;
+  } else {
+    wtPerPc=parseFloat(document.getElementById('calc-forge-wt').value)||0;
+    if(!wtPerPc){alert('Please enter Forging Weight first.');return;}
+  }
+
+  orderLines.push({name,wtPerPc:parseFloat(wtPerPc.toFixed(4)),qty,totalWt:parseFloat((wtPerPc*qty).toFixed(3)),method});
+  renderOrderLines();
+  switchTab('order');
+}
+
+// ---- Order Tab ----
+function onOrderItemSelect(){
+  const id=document.getElementById('order-item-select').value;
+  selectedOrderItemId=id;
+  const detail=document.getElementById('order-item-detail');
+  if(!id){detail.classList.add('hidden');return;}
+  detail.classList.remove('hidden');
+  const item=savedItems.find(i=>i.id===id);
+  if(!item)return;
+  document.getElementById('order-item-info').textContent=`${item.name}${item.material?' · '+item.material:''}`;
+  if(item.method==='forged'||item.defaultMethod==='forged'){
+    setOrderMethod('forged');
+    document.getElementById('order-forge-wt').value=item.forgeWt||item.wtPerPc||'';
+    document.getElementById('order-dia').value='';
+    document.getElementById('order-len').value='';
+  } else {
+    setOrderMethod('raw');
+    document.getElementById('order-dia').value=item.dia||'';
+    document.getElementById('order-len').value=item.len||'';
+    document.getElementById('order-forge-wt').value='';
+  }
+  document.getElementById('order-qty').value='';
+  calcOrderPreview();
+}
+
+function setOrderMethod(m){
+  orderMethod=m;
+  document.getElementById('order-dim-inputs').classList.toggle('hidden',m==='forged');
+  document.getElementById('order-forging-inputs').classList.toggle('hidden',m==='raw');
+  document.getElementById('order-btn-raw').className='toggle-btn'+(m==='raw'?' active-raw':'');
+  document.getElementById('order-btn-forged').className='toggle-btn'+(m==='forged'?' active-forged':'');
+  calcOrderPreview();
+}
+
+function calcOrderPreview(){
+  const qty=parseFloat(document.getElementById('order-qty').value)||0;
+  const prev=document.getElementById('order-preview');
+  let wtPerPc=0;
+  if(orderMethod==='raw'){
+    const dia=parseFloat(document.getElementById('order-dia').value)||0;
+    const len=parseFloat(document.getElementById('order-len').value)||0;
+    if(dia&&len)wtPerPc=steelWeight(dia,len).wt;
+  } else {
+    wtPerPc=parseFloat(document.getElementById('order-forge-wt').value)||0;
+  }
+  if(wtPerPc&&qty){
+    document.getElementById('order-preview-val').textContent=(wtPerPc*qty).toFixed(3)+' kg';
+    prev.style.display='block';
+  } else {
+    prev.style.display='none';
+  }
+}
+
+function addLineToOrder(){
+  const id=document.getElementById('order-item-select').value;
+  if(!id){alert('Please select an item.');return;}
+  const qty=parseFloat(document.getElementById('order-qty').value)||0;
+  if(!qty){alert('Please enter quantity.');return;}
+  const item=savedItems.find(i=>i.id===id);
+  let wtPerPc=0, method=orderMethod;
+  if(orderMethod==='raw'){
+    const dia=parseFloat(document.getElementById('order-dia').value)||0;
+    const len=parseFloat(document.getElementById('order-len').value)||0;
+    if(!dia||!len){alert('Please enter Diameter and Length.');return;}
+    wtPerPc=steelWeight(dia,len).wt;
+  } else {
+    wtPerPc=parseFloat(document.getElementById('order-forge-wt').value)||0;
+    if(!wtPerPc){alert('Please enter Forging Weight.');return;}
+  }
+  orderLines.push({name:item?item.name:'Item',wtPerPc:parseFloat(wtPerPc.toFixed(4)),qty,totalWt:parseFloat((wtPerPc*qty).toFixed(3)),method});
+  // reset
+  document.getElementById('order-item-select').value='';
+  document.getElementById('order-item-detail').classList.add('hidden');
+  document.getElementById('order-preview').style.display='none';
+  renderOrderLines();
+}
+
+function addManualToOrder(){
+  const name=document.getElementById('manual-name').value.trim()||'Custom Item';
+  const wt=parseFloat(document.getElementById('manual-wt').value)||0;
+  const qty=parseFloat(document.getElementById('manual-qty').value)||1;
+  if(!wt){alert('Please enter weight per piece.');return;}
+  orderLines.push({name,wtPerPc:wt,qty,totalWt:parseFloat((wt*qty).toFixed(3)),method:'manual'});
+  document.getElementById('manual-name').value='';
+  document.getElementById('manual-wt').value='';
+  document.getElementById('manual-qty').value='';
+  renderOrderLines();
+}
+
+function removeOrderLine(idx){
+  orderLines.splice(idx,1);
+  renderOrderLines();
+}
+
+function clearOrder(){
+  if(!confirm('Clear all order lines?'))return;
+  orderLines=[];renderOrderLines();
+}
+
+function renderOrderLines(){
+  const container=document.getElementById('order-lines-container');
+  if(!orderLines.length){container.classList.add('hidden');return;}
+  container.classList.remove('hidden');
+  const grandTotal=orderLines.reduce((s,l)=>s+l.totalWt,0);
+  document.getElementById('order-grand-total').textContent=grandTotal.toFixed(3);
+  document.getElementById('order-lines-list').innerHTML=orderLines.map((line,i)=>`
+    <div class="order-line">
+      <div class="order-line-info">
+        <div class="order-line-name">${line.name}</div>
+        <div class="order-line-detail">${line.method==='forged'?'🔨 Forged':'⬛ Dimensions'} · ${line.wtPerPc} kg/pc · ${line.qty} pcs</div>
+      </div>
+      <div class="order-line-wt">${line.totalWt} kg</div>
+      <button class="order-line-remove" onclick="removeOrderLine(${i})">✕</button>
+    </div>`).join('');
+  document.getElementById('order-breakdown').innerHTML=
+    `<div class="breakdown-row" style="font-size:10px;color:var(--muted);letter-spacing:1px;background:#1e223544;border-radius:9px 9px 0 0;">
+      <div class="breakdown-name">ITEM</div><div class="breakdown-qty">QTY</div><div class="breakdown-wt">STEEL</div></div>`+
+    orderLines.map(l=>`
+      <div class="breakdown-row">
+        <div class="breakdown-name">${l.name}</div>
+        <div class="breakdown-qty">${l.qty}</div>
+        <div class="breakdown-wt">${l.totalWt} kg</div>
+      </div>`).join('');
+}
+
+// ---- Saved Items Tab ----
+function renderSaved(){
+  const search=(document.getElementById('search-input')?.value||'').toLowerCase();
+  const filtered=savedItems.filter(i=>i.name.toLowerCase().includes(search)||(i.material||'').toLowerCase().includes(search));
+  if(!filtered.length){
+    document.getElementById('saved-list').innerHTML='<div class="empty">No saved items yet.<br>Go to ＋ Save Item to add one.</div>';return;
+  }
+  document.getElementById('saved-list').innerHTML=filtered.map(item=>{
+    const isForged=item.method==='forged'||item.defaultMethod==='forged';
+    const wtInfo=isForged
+      ?`<div class="chip purple">🔨 ${item.forgeWt||item.wtPerPc||'?'} kg/pc (forged)</div>`
+      :`<div class="chip blue">⌀ ${item.dia||'?'} mm → ${item.effDia||((item.dia||0)+3)} mm</div>
+        <div class="chip blue">↕ ${item.len||'?'} mm → ${item.effLen||((item.len||0)+5)} mm</div>
+        <div class="chip amber">⚖ ${item.wtPerPc||'?'} kg/pc</div>`;
+    return`<div class="item-card">
+      <div class="item-top">
+        <div><div class="item-name">${item.name}</div><div class="item-sub">${item.material||'No material specified'}</div></div>
+        <div style="display:flex;gap:5px;align-items:center;">
+          <button class="load-btn" onclick="loadItem('${item.id}')">Load</button>
+          <button class="delete-btn" onclick="deleteItemDB('${item.id}')">✕</button>
+        </div>
+      </div>
+      <div class="chips">${wtInfo}</div>
+    </div>`;}).join('');
+}
+
+function loadItem(id){
+  const item=savedItems.find(i=>i.id===id);if(!item)return;
+  document.getElementById('calc-item-select').value=id;
+  document.getElementById('calc-material').value=item.material||'';
+  if(item.method==='forged'||item.defaultMethod==='forged'){
+    setMethod('forged');
+    document.getElementById('calc-forge-wt').value=item.forgeWt||item.wtPerPc||'';
+  } else {
+    setMethod('raw');
+    document.getElementById('calc-dia').value=item.dia||'';
+    document.getElementById('calc-len').value=item.len||'';
+  }
+  document.getElementById('calc-qty').value='';
+  calculate();
+  switchTab('calc');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+async function deleteItemDB(id){
+  if(!confirm('Delete this saved item?'))return;
+  try{showSync(true);await _deleteDoc(_doc(_db,'mat-items',id));}
+  catch(e){alert('Error deleting: '+e.message);showSync(false);}
+}
+
+// ---- Save New Item Tab ----
+function setSnMethod(m){
+  snMethod=m;
+  document.getElementById('sn-dim-inputs').classList.toggle('hidden',m==='forged');
+  document.getElementById('sn-forging-inputs').classList.toggle('hidden',m==='raw');
+  document.getElementById('sn-btn-raw').className='toggle-btn'+(m==='raw'?' active-raw':'');
+  document.getElementById('sn-btn-forged').className='toggle-btn'+(m==='forged'?' active-forged':'');
+  previewSave();
+}
+
+function previewSave(){
+  const dia=parseFloat(document.getElementById('sn-dia')?.value)||0;
+  const len=parseFloat(document.getElementById('sn-len')?.value)||0;
+  if(!dia||!len){
+    document.getElementById('pv-dia').textContent='—';
+    document.getElementById('pv-len').textContent='—';
+    document.getElementById('pv-wt').textContent='—';
+    return;
+  }
+  const{D,L,wt}=steelWeight(dia,len);
+  document.getElementById('pv-dia').textContent=D+' mm';
+  document.getElementById('pv-len').textContent=L+' mm';
+  document.getElementById('pv-wt').textContent=wt.toFixed(4)+' kg';
+}
+
+async function saveItem(){
+  const name=document.getElementById('sn-name').value.trim();
+  const mat=document.getElementById('sn-mat').value.trim();
+  if(!name){alert('Please enter an item name.');return;}
+
+  let data={name,material:mat,method:snMethod,createdAt:_ts()};
+
+  if(snMethod==='raw'){
+    const dia=parseFloat(document.getElementById('sn-dia').value)||0;
+    const len=parseFloat(document.getElementById('sn-len').value)||0;
+    if(!dia||!len){alert('Please enter Diameter and Length.');return;}
+    const{D,L,wt}=steelWeight(dia,len);
+    data={...data,dia,len,effDia:D,effLen:L,wtPerPc:parseFloat(wt.toFixed(4)),defaultMethod:'raw'};
+  } else {
+    const forgeWt=parseFloat(document.getElementById('sn-forge-wt').value)||0;
+    if(!forgeWt){alert('Please enter Forging Weight.');return;}
+    data={...data,forgeWt,wtPerPc:forgeWt,defaultMethod:'forged'};
+  }
+
+  const id=name.toLowerCase().replace(/[^a-z0-9]/g,'-')+'-'+Date.now().toString(36);
+  try{
+    showSync(true);
+    await _setDoc(_doc(_db,'mat-items',id),data);
+    ['sn-name','sn-mat','sn-dia','sn-len','sn-forge-wt'].forEach(fid=>{const el=document.getElementById(fid);if(el)el.value='';});
+    previewSave();
+    switchTab('saved');
+  }catch(e){alert('Error saving: '+e.message);showSync(false);}
+}
+
+// ---- Bootstrap ----
+function waitForFirebase(){
+  const fb=window._fb;if(!fb){setTimeout(waitForFirebase,100);return;}
+  _db=fb.db;_col=fb.collection;_doc=fb.doc;_setDoc=fb.setDoc;
+  _deleteDoc=fb.deleteDoc;_query=fb.query;_orderBy=fb.orderBy;
+  _onSnapshot=fb.onSnapshot;_ts=fb.serverTimestamp;
+  startListeners();
+}
+waitForFirebase();
+</script>
+</body>
+</html>
