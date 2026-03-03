@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0c12">
+<title>GearTrack</title>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc, addDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  const cfg={apiKey:"AIzaSyCqFhnvlvjs3XQM5PNecQsFt49A4qUvTsE",authDomain:"geartrack1995.firebaseapp.com",projectId:"geartrack1995",storageBucket:"geartrack1995.firebasestorage.app",messagingSenderId:"726049606513",appId:"1:726049606513:web:b92218ef2c390f638e84d0"};
+  const app=initializeApp(cfg),auth=getAuth(app),db=getFirestore(app);
+  window._fb={auth,db,signInWithEmailAndPassword,signOut,onAuthStateChanged,collection,doc,onSnapshot,setDoc,deleteDoc,addDoc,serverTimestamp,query,orderBy};
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow:wght@700;900&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'DM Mono','Courier New',monospace;background:#0a0c12;color:#e8e8e8;min-height:100vh;max-width:480px;margin:0 auto;padding-bottom:40px;}
+/* LOGIN */
+#login-screen{display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100vh;padding:30px 24px;}
+.login-logo{font-family:'Barlow',sans-serif;font-size:38px;font-weight:900;letter-spacing:6px;color:#f59e0b;margin-bottom:6px;}
+.login-sub{font-size:10px;color:#555;letter-spacing:3px;margin-bottom:48px;}
+.login-card{width:100%;background:#11131f;border:1px solid #1e2235;border-top:2px solid #f59e0b;border-radius:14px;padding:28px 24px;}
+.login-card h2{font-size:13px;font-weight:500;color:#888;letter-spacing:2px;margin-bottom:20px;}
+.login-error{background:#ef444422;border:1px solid #ef444433;border-radius:7px;color:#ef4444;font-size:12px;padding:10px 12px;margin-bottom:14px;display:none;}
+.login-error.show{display:block;}
+/* HEADER */
+.header{background:#11131f;border-bottom:1px solid #1e2235;padding:16px 18px 12px;display:flex;justify-content:space-between;align-items:flex-end;}
+.logo{font-family:'Barlow',sans-serif;font-size:22px;font-weight:900;letter-spacing:4px;color:#f59e0b;}
+.subtitle{font-size:10px;color:#555;letter-spacing:2px;margin-top:2px;}
+.item-title{font-size:14px;color:#e8e8e8;font-weight:600;margin-top:4px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.saved-badge{background:#00e5a022;color:#00e5a0;border:1px solid #00e5a044;border-radius:6px;padding:4px 10px;font-size:11px;opacity:0;transition:opacity 0.3s;}
+.saved-badge.show{opacity:1;}
+.back-btn{background:none;border:1px solid #2a2d3a;border-radius:7px;color:#aaa;font-size:12px;padding:6px 12px;cursor:pointer;font-family:inherit;}
+.signout-btn{background:none;border:1px solid #2a2d3a;border-radius:7px;color:#666;font-size:10px;padding:5px 9px;cursor:pointer;font-family:inherit;letter-spacing:1px;}
+/* NAV */
+.nav{display:flex;background:#11131f;border-bottom:1px solid #1e2235;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.nav::-webkit-scrollbar{display:none;}
+.nav-btn{flex-shrink:0;padding:11px 12px;background:none;border:none;color:#666;font-size:11px;cursor:pointer;letter-spacing:0.5px;border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit;}
+.nav-btn.active{color:#f59e0b;border-bottom:2px solid #f59e0b;}
+.body{padding:14px;}
+/* STATS */
+.stats-row{display:flex;gap:10px;margin-bottom:20px;}
+.stat-card{flex:1;background:#11131f;border:1px solid #1e2235;border-radius:10px;padding:14px 10px;text-align:center;}
+.stat-num{font-size:28px;font-weight:700;}
+.stat-num.green{color:#00e5a0;} .stat-num.amber{color:#f59e0b;}
+.stat-label{font-size:10px;color:#666;margin-top:4px;letter-spacing:1px;}
+.section-title{font-size:10px;color:#666;letter-spacing:2px;margin-bottom:10px;margin-top:4px;}
+/* DASHBOARD */
+.dash-stage-row{display:flex;align-items:center;gap:12px;background:#11131f;border:1px solid #1e2235;border-radius:9px;padding:12px 14px;margin-bottom:8px;cursor:pointer;}
+.dash-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.dash-stage-name{flex:1;font-size:13px;font-weight:500;}
+.dash-count{font-size:20px;font-weight:700;}
+/* ITEMS */
+.list{display:flex;flex-direction:column;gap:10px;}
+.item-card{background:#11131f;border:1px solid #1e2235;border-radius:12px;padding:15px;cursor:pointer;}
+.item-card:active{border-color:#f59e0b44;}
+.item-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+.item-name{font-size:14px;font-weight:700;margin-bottom:3px;}
+.item-mat{font-size:11px;color:#666;}
+.stage-pill{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
+.progress-bar{height:4px;background:#1e2235;border-radius:4px;overflow:hidden;margin-bottom:8px;}
+.progress-fill{height:100%;border-radius:4px;}
+.item-meta{display:flex;justify-content:space-between;font-size:10px;color:#555;}
+/* STAGE TABS */
+.stage-tabs{display:flex;overflow-x:auto;gap:8px;padding-bottom:10px;margin-bottom:14px;-webkit-overflow-scrolling:touch;}
+.stage-tabs::-webkit-scrollbar{display:none;}
+.stage-tab{flex-shrink:0;padding:7px 14px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid #2a2d3a;background:#11131f;color:#666;font-family:inherit;white-space:nowrap;}
+.stage-tab.active{color:#0a0c12;border-color:transparent;}
+.tab-count{display:inline-block;background:#00000033;border-radius:10px;padding:1px 6px;margin-left:5px;font-size:10px;}
+/* DETAIL */
+.info-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.tag{background:#1e2235;border:1px solid #2a2d3a;border-radius:6px;padding:4px 10px;font-size:11px;color:#888;}
+.pipeline-card{background:#11131f;border:1px solid #1e2235;border-radius:12px;padding:16px;margin-bottom:14px;}
+/* Pipeline rows */
+.stage-row{display:flex;align-items:flex-start;}
+.stage-icon-box{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:1px solid #2a2d3a;background:#1e2130;transition:all 0.15s;}
+.stage-icon-box.clickable{cursor:pointer;}
+.stage-icon-box.clickable:active{transform:scale(0.92);}
+.stage-connector-col{width:2px;margin-left:20px;flex-shrink:0;}
+.connector-line{width:2px;height:28px;background:#2a2d3a;}
+.connector-line.done{background:#00e5a0;}
+.connector-line.skipped{background:#f59e0b55;}
+.stage-info-col{flex:1;padding-left:14px;padding-bottom:18px;padding-top:4px;}
+.stage-name-label{font-size:13px;font-weight:600;margin-bottom:3px;color:#888;}
+.stage-name-label.completed{color:#e8e8e8;}
+.stage-qty{font-size:13px;font-weight:700;}
+.reject-badge{background:#ef444422;color:#ef4444;border:1px solid #ef444433;border-radius:5px;padding:1px 7px;font-size:10px;margin-left:6px;}
+.skipped-badge{background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b33;border-radius:5px;padding:2px 8px;font-size:10px;}
+.stage-date-label{font-size:10px;color:#555;display:block;margin-top:2px;}
+.stage-note-label{font-size:10px;color:#888;display:block;font-style:italic;}
+.stage-pending{font-size:11px;color:#444;font-style:italic;}
+.tap-hint{font-size:10px;color:#f59e0b;display:block;margin-top:3px;}
+.edit-btn{background:#00c2ff22;color:#00c2ff;border:1px solid #00c2ff44;border-radius:6px;padding:3px 9px;font-size:10px;cursor:pointer;font-family:inherit;margin-top:6px;display:inline-block;}
+/* COMPLETE */
+.complete-badge{width:100%;padding:14px 0;background:#00e5a022;color:#00e5a0;border:1px solid #00e5a044;border-radius:10px;font-size:13px;font-weight:700;text-align:center;}
+/* LOG */
+.log-entry{background:#11131f;border:1px solid #1e2235;border-radius:10px;padding:13px;display:flex;gap:12px;align-items:flex-start;}
+.log-badge{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.log-name{font-size:13px;font-weight:600;margin-bottom:3px;}
+.log-meta{font-size:11px;color:#888;margin-bottom:3px;}
+.log-date{font-size:10px;color:#555;}
+/* FORM */
+.form-card{background:#11131f;border:1px solid #1e2235;border-radius:12px;padding:20px;}
+.form-title{font-size:15px;font-weight:700;color:#f59e0b;margin-bottom:18px;letter-spacing:2px;}
+label{display:block;font-size:10px;color:#777;letter-spacing:1px;margin-bottom:6px;margin-top:14px;}
+input,select{width:100%;background:#0a0c12;border:1px solid #1e2235;border-radius:8px;padding:10px 12px;color:#e8e8e8;font-size:13px;outline:none;font-family:inherit;appearance:none;-webkit-appearance:none;}
+input:focus,select:focus{border-color:#f59e0b55;}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:36px;}
+select option{background:#11131f;}
+.submit-btn{margin-top:20px;width:100%;padding:13px 0;background:#f59e0b;color:#0a0c12;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:1px;font-family:inherit;}
+/* MODAL */
+.overlay{position:fixed;inset:0;background:#000000cc;display:flex;align-items:flex-end;justify-content:center;z-index:100;}
+.modal{background:#11131f;border:1px solid #1e2235;border-top:2px solid #f59e0b;border-radius:16px 16px 0 0;padding:22px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:8px;}
+.modal-from{font-size:12px;color:#888;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #1e2235;}
+.modal-actions{display:flex;gap:10px;margin-top:18px;}
+.cancel-btn{flex:1;padding:13px 0;background:none;border:1px solid #1e2235;border-radius:9px;color:#888;font-size:13px;cursor:pointer;font-family:inherit;}
+.confirm-btn{flex:1;padding:13px 0;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#0a0c12;}
+.stage-select-grid{display:flex;flex-direction:column;gap:7px;margin-bottom:6px;}
+.stage-sel-btn{width:100%;padding:10px 14px;border-radius:9px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+/* SYNC / MISC */
+.sync-bar{text-align:center;font-size:10px;color:#f59e0b;letter-spacing:2px;padding:6px;background:#f59e0b11;display:none;}
+.sync-bar.show{display:block;}
+.delete-btn{background:#ff444422;color:#ff4444;border:1px solid #ff444433;border-radius:7px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;float:right;}
+.empty{text-align:center;color:#444;padding:60px 20px;line-height:2;font-size:14px;}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #0a0c1255;border-top-color:#0a0c12;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-logo">GEARTRACK</div>
+  <div class="login-sub">Factory Production Tracker</div>
+  <div class="login-card">
+    <h2>SIGN IN TO CONTINUE</h2>
+    <div class="login-error" id="login-error"></div>
+    <label>Email</label>
+    <input type="email" id="login-email" placeholder="factory@example.com" autocomplete="username">
+    <label>Password</label>
+    <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+    <button class="submit-btn" id="login-btn" onclick="doLogin()">Sign In</button>
+    <div style="font-size:10px;color:#444;margin-top:14px;text-align:center;line-height:1.7;">Everyone uses the same login credentials.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <!-- MAIN VIEW -->
+  <div id="main-view">
+    <div class="header">
+      <div><div class="logo">GEARTRACK</div><div class="subtitle">Factory Production Tracker</div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <button class="signout-btn" onclick="doSignOut()">Sign Out</button>
+        <div class="saved-badge" id="saved-badge">✓ Synced</div>
+      </div>
+    </div>
+    <div class="sync-bar" id="sync-bar">⟳ SYNCING...</div>
+    <div class="nav">
+      <button class="nav-btn active" onclick="switchView('dashboard')">📊 Dashboard</button>
+      <button class="nav-btn" onclick="switchView('items')">🗂 Items</button>
+      <button class="nav-btn" onclick="switchView('log')">📋 Log</button>
+      <button class="nav-btn" onclick="switchView('new')">＋ New Item</button>
+    </div>
+    <div class="body">
+      <div id="view-dashboard"></div>
+      <div id="view-items" class="hidden"></div>
+      <div id="view-log" class="hidden"></div>
+      <div id="view-new" class="hidden"></div>
+    </div>
+  </div>
+  <!-- DETAIL VIEW -->
+  <div id="detail-view" class="hidden">
+    <div class="header">
+      <button class="back-btn" onclick="closeDetail()">← Back</button>
+      <div><div class="logo">ITEM DETAIL</div><div class="item-title" id="detail-title"></div></div>
+      <div class="saved-badge" id="saved-badge-detail">✓ Synced</div>
+    </div>
+    <div class="body" id="detail-body"></div>
+  </div>
+</div>
+
+<!-- MOVE MODAL -->
+<div class="overlay hidden" id="move-modal">
+  <div class="modal">
+    <div class="modal-title">Move to Stage</div>
+    <div class="modal-from" id="modal-from"></div>
+    <label>Select Target Stage *</label>
+    <div class="stage-select-grid" id="modal-stage-btns"></div>
+    <label>Quantity *</label><input type="number" id="modal-qty" min="0" placeholder="0">
+    <label>Rejected / Scrapped</label><input type="number" id="modal-reject" min="0" placeholder="0">
+    <label>Date &amp; Time</label><input type="datetime-local" id="modal-date">
+    <label>Note (optional)</label><input type="text" id="modal-note" placeholder="e.g. Operator: John, Machine: CNC-2">
+    <div class="modal-actions">
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+      <button class="confirm-btn" id="modal-confirm-btn" onclick="doMove()" style="background:#f59e0b;">Confirm Move</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="overlay hidden" id="edit-modal">
+  <div class="modal" style="border-top-color:#00c2ff;">
+    <div class="modal-title">✏ Edit Stage Entry</div>
+    <div class="modal-from" id="edit-modal-label"></div>
+    <label>Quantity *</label><input type="number" id="edit-qty" min="0" placeholder="0">
+    <label>Rejected / Scrapped</label><input type="number" id="edit-reject" min="0" placeholder="0">
+    <label>Date &amp; Time</label><input type="datetime-local" id="edit-date">
+    <label>Note (optional)</label><input type="text" id="edit-note" placeholder="e.g. Operator: John">
+    <div class="modal-actions">
+      <button class="cancel-btn" onclick="closeEditModal()">Cancel</button>
+      <button class="confirm-btn" id="edit-confirm-btn" onclick="doEdit()" style="background:#00c2ff;">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STAGES=[
+  {id:"raw",      label:"Raw Material",   unit:"Kg",  icon:"⬛",color:"#94a3b8"},
+  {id:"saw",      label:"Saw Cutting",    unit:"Pcs", icon:"🔪",color:"#f59e0b"},
+  {id:"forging",  label:"Forging",        unit:"Pcs", icon:"🔨",color:"#ef4444"},
+  {id:"cnc",      label:"CNC Turning",    unit:"Pcs", icon:"⚙️", color:"#8b5cf6"},
+  {id:"teeth",    label:"Teeth Cutting",  unit:"Pcs", icon:"🦷",color:"#06b6d4"},
+  {id:"heat",     label:"Heat Treatment", unit:"Pcs", icon:"🔥",color:"#f97316"},
+  {id:"grinding", label:"Grinding",       unit:"Pcs", icon:"💿",color:"#10b981"},
+  {id:"packing",  label:"Packing",        unit:"Pcs", icon:"📦",color:"#3b82f6"},
+];
+const STAGE_IDS=STAGES.map(s=>s.id);
+function stageInfo(id){return STAGES.find(s=>s.id===id);}
+function fmt(iso){
+  if(!iso)return"—";
+  try{const d=new Date(iso);return d.toLocaleString("en-US",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});}
+  catch{return"—";}
+}
+
+// ---- State ----
+let _auth,_db,_col,_doc,_setDoc,_deleteDoc,_addDoc,_query,_orderBy,_onSnapshot;
+let items=[],logEntries=[];
+let currentView="dashboard",selectedItemId=null;
+let moveItemId=null,selectedTargetStage=null,activeStageTab=null;
+let editItemId=null,editStageId=null;
+let unsubItems=null,unsubLog=null;
+
+// ---- Auth ----
+async function doLogin(){
+  const email=document.getElementById("login-email").value.trim();
+  const pass=document.getElementById("login-password").value;
+  const errEl=document.getElementById("login-error"),btn=document.getElementById("login-btn");
+  errEl.classList.remove("show");
+  btn.innerHTML='<span class="spinner"></span>Signing in...';btn.disabled=true;
+  try{await window._fb.signInWithEmailAndPassword(window._fb.auth,email,pass);}
+  catch(e){
+    const msgs={"auth/wrong-password":"Incorrect email or password.","auth/user-not-found":"Incorrect email or password.","auth/invalid-credential":"Incorrect email or password.","auth/too-many-requests":"Too many attempts. Please wait."};
+    errEl.textContent=msgs[e.code]||"Login failed. Please try again.";
+    errEl.classList.add("show");btn.innerHTML="Sign In";btn.disabled=false;
+  }
+}
+async function doSignOut(){
+  if(unsubItems)unsubItems();if(unsubLog)unsubLog();
+  items=[];logEntries=[];
+  await window._fb.signOut(window._fb.auth);
+}
+function onUserLoggedIn(){
+  document.getElementById("login-screen").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  document.getElementById("login-btn").innerHTML="Sign In";
+  document.getElementById("login-btn").disabled=false;
+  startListeners();
+}
+function onUserLoggedOut(){
+  document.getElementById("app").classList.add("hidden");
+  document.getElementById("login-screen").classList.remove("hidden");
+  closeModal();closeEditModal();
+}
+
+// ---- Firestore ----
+function startListeners(){
+  showSync(true);
+  const fb=window._fb;
+  unsubItems=fb.onSnapshot(fb.query(fb.collection(fb.db,"items"),fb.orderBy("createdAt","desc")),snap=>{
+    items=snap.docs.map(d=>({id:d.id,...d.data()}));
+    render();
+    if(selectedItemId)renderDetail();
+    showSync(false);flashSaved();
+  },err=>{console.error("items:",err);showSync(false);});
+  unsubLog=fb.onSnapshot(fb.query(fb.collection(fb.db,"log"),fb.orderBy("date","desc")),snap=>{
+    logEntries=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(currentView==="log")renderLog();
+  },err=>console.error("log:",err));
+}
+function showSync(on){document.getElementById("sync-bar").classList.toggle("show",on);}
+function flashSaved(){
+  ["saved-badge","saved-badge-detail"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.classList.add("show");setTimeout(()=>el.classList.remove("show"),1800);}
+  });
+}
+
+// ---- Navigation ----
+function switchView(v){
+  currentView=v;
+  ["dashboard","items","log","new"].forEach(n=>document.getElementById("view-"+n).classList.toggle("hidden",n!==v));
+  document.querySelectorAll(".nav-btn").forEach((b,i)=>b.classList.toggle("active",["dashboard","items","log","new"][i]===v));
+  render();
+}
+function openDetail(id){
+  selectedItemId=id;
+  document.getElementById("main-view").classList.add("hidden");
+  document.getElementById("detail-view").classList.remove("hidden");
+  renderDetail();
+}
+function closeDetail(){
+  selectedItemId=null;
+  document.getElementById("detail-view").classList.add("hidden");
+  document.getElementById("main-view").classList.remove("hidden");
+  render();
+}
+
+// ---- Render ----
+function render(){
+  if(currentView==="dashboard")renderDashboard();
+  else if(currentView==="items")renderItems();
+  else if(currentView==="log")renderLog();
+  else if(currentView==="new")renderNewForm();
+}
+
+function renderDashboard(){
+  const sc={};STAGE_IDS.forEach(s=>{sc[s]=items.filter(i=>i.currentStage===s).length;});
+  const total=items.length,packed=sc["packing"]||0,inProg=items.filter(i=>i.currentStage!=="packing").length;
+  const rows=STAGES.map(st=>{
+    const c=sc[st.id]||0;if(!c)return"";
+    return`<div class="dash-stage-row" onclick="switchView('items')">
+      <div class="dash-icon" style="background:${st.color}22;border:1px solid ${st.color}44;">${st.icon}</div>
+      <div class="dash-stage-name">${st.label}</div>
+      <div class="dash-count" style="color:${st.color}">${c}</div>
+    </div>`;}).join("");
+  document.getElementById("view-dashboard").innerHTML=`
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-num amber">${total}</div><div class="stat-label">TOTAL ITEMS</div></div>
+      <div class="stat-card"><div class="stat-num green">${packed}</div><div class="stat-label">PACKED</div></div>
+      <div class="stat-card"><div class="stat-num amber">${inProg}</div><div class="stat-label">IN PROGRESS</div></div>
+    </div>
+    <div class="section-title">ITEMS BY STAGE</div>
+    ${rows||'<div class="empty">No items yet. Create your first item →</div>'}`;
+}
+
+function renderItems(){
+  const withItems=STAGES.filter(s=>items.some(i=>i.currentStage===s.id));
+  if(!withItems.length){document.getElementById("view-items").innerHTML='<div class="empty">No items yet.<br>Create your first item →</div>';return;}
+  if(!activeStageTab||!withItems.find(s=>s.id===activeStageTab))activeStageTab=withItems[0].id;
+  const tabs=STAGES.map(st=>{
+    const c=items.filter(i=>i.currentStage===st.id).length;if(!c)return"";
+    const active=st.id===activeStageTab;
+    return`<button class="stage-tab${active?" active":""}" style="${active?"background:"+st.color+";":" "}" onclick="setStageTab('${st.id}')">${st.icon} ${st.label}<span class="tab-count">${c}</span></button>`;
+  }).join("");
+  const st=stageInfo(activeStageTab);
+  const cards=items.filter(i=>i.currentStage===activeStageTab).map(item=>{
+    const idx=STAGE_IDS.indexOf(item.currentStage);
+    const pct=Math.round((idx/(STAGES.length-1))*100);
+    const ca=item.createdAt?.toDate?item.createdAt.toDate().toISOString():item.createdAt;
+    return`<div class="item-card" onclick="openDetail('${item.id}')">
+      <div class="item-card-top">
+        <div><div class="item-name">${item.name}</div>${item.material?`<div class="item-mat">${item.material}</div>`:""}</div>
+        <div class="stage-pill" style="background:${st.color}22;color:${st.color};border:1px solid ${st.color}44;">${st.icon} ${st.label}</div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${st.color}"></div></div>
+      <div class="item-meta"><span>${pct}% complete</span><span>Started: ${fmt(ca)}</span></div>
+    </div>`;}).join("");
+  document.getElementById("view-items").innerHTML=`<div class="stage-tabs">${tabs}</div><div class="list">${cards||'<div class="empty">No items at this stage.</div>'}</div>`;
+}
+function setStageTab(id){activeStageTab=id;renderItems();}
+
+function renderLog(){
+  if(!logEntries.length){document.getElementById("view-log").innerHTML='<div class="empty">No activity yet.</div>';return;}
+  const html=logEntries.map(e=>{
+    const ts=stageInfo(e.to);if(!ts)return"";
+    const from=e.from?(stageInfo(e.from)?.label||e.from)+" → ":"";
+    const rej=e.rejects>0?`<span style="color:#ef4444"> · -${e.rejects} rejected</span>`:"";
+    const note=e.note?` · ${e.note}`:"";
+    const skip=e.skipped?` <span style="color:#f59e0b;font-size:10px;">(stages skipped)</span>`:"";
+    const ds=e.date?.toDate?e.date.toDate().toISOString():e.date;
+    return`<div class="log-entry">
+      <div class="log-badge" style="background:${ts.color}22;color:${ts.color}">${ts.icon}</div>
+      <div><div class="log-name">${e.itemName||""}</div>
+      <div class="log-meta">${from}<span style="color:${ts.color}">${ts.label}</span> · ${e.qty} ${ts.unit}${rej}${note}${skip}</div>
+      <div class="log-date">${fmt(ds)}</div></div>
+    </div>`;}).join("");
+  document.getElementById("view-log").innerHTML=`<div class="list">${html}</div>`;
+}
+
+function renderNewForm(){
+  const stageOpts=STAGES.map(s=>`<option value="${s.id}">${s.icon} ${s.label}</option>`).join("");
+  document.getElementById("view-new").innerHTML=`
+    <div class="form-card">
+      <div class="form-title">NEW PRODUCTION ITEM</div>
+      <label>Item Name / Order No. *</label>
+      <input type="text" id="new-name" placeholder="e.g. Spur Gear 40T">
+      <label>Material Type</label>
+      <input type="text" id="new-material" placeholder="e.g. EN8 Steel, EN36 Steel...">
+      <label>Starting Stage *</label>
+      <select id="new-stage">${stageOpts}</select>
+      <label id="new-weight-label">Raw Material Weight (Kg) *</label>
+      <input type="number" id="new-weight" min="0" placeholder="e.g. 500">
+      <label>Notes</label>
+      <input type="text" id="new-notes" placeholder="Optional notes...">
+      <button class="submit-btn" onclick="createItem()">Create Item</button>
+    </div>`;
+  // Update weight label when stage changes
+  document.getElementById("new-stage").addEventListener("change",function(){
+    const st=stageInfo(this.value);
+    document.getElementById("new-weight-label").textContent=`Starting Quantity (${st.unit}) *`;
+    document.getElementById("new-weight").placeholder=st.unit==="Kg"?"e.g. 500":"e.g. 100";
+  });
+}
+
+function renderDetail(){
+  const item=items.find(i=>i.id===selectedItemId);
+  if(!item){closeDetail();return;}
+  document.getElementById("detail-title").textContent=item.name;
+  const curIdx=STAGE_IDS.indexOf(item.currentStage);
+
+  const stageRows=STAGES.map((stage,idx)=>{
+    const done=idx<curIdx,current=idx===curIdx,pending=idx>curIdx;
+    const data=item.stages?.[stage.id];
+    const isSkipped=data?.skipped===true;
+    // Stages after current are clickable to trigger move
+    const canMoveTo=pending&&!isSkipped;
+    const iconStyle=`background:${current?stage.color+"33":done&&!isSkipped?stage.color+"22":isSkipped?"#f59e0b11":"#1e2130"};border:1px solid ${current||(done&&!isSkipped)?stage.color:isSkipped?"#f59e0b33":"#2a2d3a"};`;
+    const nameColor=current?stage.color:done&&!isSkipped?"#e8e8e8":isSkipped?"#f59e0b":"#555";
+    const prefix=current?`<span style="color:${stage.color}">▶ </span>`:done&&!isSkipped?'<span style="color:#00e5a0">✓ </span>':isSkipped?'<span style="color:#f59e0b">⤼ </span>':"";
+    const connClass=done?(isSkipped?"connector-line skipped":"connector-line done"):"connector-line";
+    const opac=pending?"opacity:0.45;":"";
+    const clickAttr=canMoveTo?`onclick="openModal('${item.id}','${stage.id}')" title="Move to ${stage.label}"`:"";
+    const clickableClass=canMoveTo?" clickable":"";
+
+    let dataHtml="";
+    if(isSkipped){
+      dataHtml=`<span class="skipped-badge">Skipped</span>`;
+    } else if(data){
+      const ds=data.date?.toDate?data.date.toDate().toISOString():data.date;
+      const rb=data.rejects>0?`<span class="reject-badge">−${data.rejects} rejected</span>`:"";
+      dataHtml=`<span class="stage-qty" style="color:${stage.color}">${data.qty} ${stage.unit}</span>${rb}
+        <span class="stage-date-label">${fmt(ds)}</span>
+        ${data.note?`<span class="stage-note-label">${data.note}</span>`:""}
+        <br><button class="edit-btn" onclick="event.stopPropagation();openEditModal('${item.id}','${stage.id}')">✏ Edit</button>`;
+    } else if(canMoveTo){
+      dataHtml=`<span class="tap-hint">Tap icon to move here</span>`;
+    } else {
+      dataHtml=`<span class="stage-pending">Not started</span>`;
+    }
+
+    return`<div class="stage-row">
+      <div class="stage-icon-box${clickableClass}" style="${iconStyle}" ${clickAttr}>${stage.icon}</div>
+      <div class="stage-connector-col">${idx<STAGES.length-1?`<div class="${connClass}"></div>`:""}</div>
+      <div class="stage-info-col" style="${opac}">
+        <div class="stage-name-label${done&&!isSkipped?" completed":""}" style="color:${nameColor}">${prefix}${stage.label}</div>
+        ${dataHtml}
+      </div>
+    </div>`;
+  }).join("");
+
+  const isPacked=curIdx===STAGES.length-1;
+  const ca=item.createdAt?.toDate?item.createdAt.toDate().toISOString():item.createdAt;
+  document.getElementById("detail-body").innerHTML=`
+    <div class="info-row">
+      ${item.material?`<span class="tag">Material: ${item.material}</span>`:""}
+      <span class="tag">Started: ${fmt(ca)}</span>
+      <button class="delete-btn" onclick="deleteItem('${item.id}')">✕ Delete</button>
+    </div>
+    <div class="pipeline-card">
+      <div class="section-title">PRODUCTION FLOW${!isPacked?' · <span style="color:#f59e0b;font-style:italic;">tap a stage icon to move</span>':''}</div>
+      ${stageRows}
+    </div>
+    ${isPacked?'<div class="complete-badge">✓ Production Complete — Packed</div>':""}`;
+}
+
+// ---- Actions ----
+async function createItem(){
+  const name=document.getElementById("new-name").value.trim();
+  const mat=document.getElementById("new-material").value.trim();
+  const stageId=document.getElementById("new-stage").value;
+  const wt=document.getElementById("new-weight").value;
+  const notes=document.getElementById("new-notes").value.trim();
+  if(!name||!wt){alert("Please fill in Item Name and Starting Quantity.");return;}
+  const st=stageInfo(stageId);
+  const now=new Date().toISOString();
+  const fb=window._fb;
+  try{
+    showSync(true);
+    const ref=await fb.addDoc(fb.collection(fb.db,"items"),{
+      name, material:mat, notes,
+      createdAt:fb.serverTimestamp(),
+      currentStage:stageId,
+      stages:{[stageId]:{qty:Number(wt),date:now,rejects:0,note:notes}}
+    });
+    await fb.addDoc(fb.collection(fb.db,"log"),{
+      itemId:ref.id, itemName:name,
+      from:null, to:stageId,
+      qty:Number(wt), rejects:0,
+      date:fb.serverTimestamp(), note:"Item created"
+    });
+    switchView("items");
+  }catch(e){alert("Error: "+e.message);showSync(false);}
+}
+
+async function deleteItem(id){
+  if(!confirm("Delete this item and all its history?"))return;
+  const fb=window._fb;
+  try{showSync(true);await fb.deleteDoc(fb.doc(fb.db,"items",id));closeDetail();}
+  catch(e){alert("Error: "+e.message);showSync(false);}
+}
+
+// ---- Move Modal ----
+// targetStageId is pre-selected when user taps a stage icon
+function openModal(itemId, preselectedStageId){
+  moveItemId=itemId;
+  const item=items.find(i=>i.id===itemId);
+  if(!item)return;
+  const curIdx=STAGE_IDS.indexOf(item.currentStage);
+  const curStage=stageInfo(item.currentStage);
+  const curData=item.stages?.[item.currentStage];
+
+  // Default to preselected or next stage
+  selectedTargetStage=preselectedStageId||STAGE_IDS[curIdx+1];
+
+  const btns=STAGES.slice(curIdx+1).map((st,i)=>{
+    const sel=st.id===selectedTargetStage;
+    const hint=i===0?"← next":`skip ${i} stage${i>1?"s":""}`;
+    return`<button class="stage-sel-btn" id="stage-sel-${st.id}" onclick="selectTargetStage('${st.id}')"
+      style="background:${sel?st.color+"33":"#0a0c12"};color:${sel?st.color:"#666"};border:1px solid ${sel?st.color:"#2a2d3a"};">
+      <span>${st.icon} ${st.label}</span>
+      <span style="font-size:10px;opacity:0.8;">${sel?"✓ selected":hint}</span>
+    </button>`;}).join("");
+
+  document.getElementById("modal-stage-btns").innerHTML=btns;
+  document.getElementById("modal-from").innerHTML=`From: <span style="color:${curStage.color}">${curStage.icon} ${curStage.label}</span>${curData?" · "+curData.qty+" "+curStage.unit:""}`;
+  document.getElementById("modal-qty").value="";
+  document.getElementById("modal-reject").value="";
+  document.getElementById("modal-note").value="";
+  document.getElementById("modal-date").value=new Date().toISOString().slice(0,16);
+  document.getElementById("modal-confirm-btn").style.background=stageInfo(selectedTargetStage).color;
+  document.getElementById("move-modal").classList.remove("hidden");
+}
+
+function selectTargetStage(stageId){
+  selectedTargetStage=stageId;
+  const item=items.find(i=>i.id===moveItemId);
+  if(!item)return;
+  const curIdx=STAGE_IDS.indexOf(item.currentStage);
+  STAGES.slice(curIdx+1).forEach((st,i)=>{
+    const btn=document.getElementById("stage-sel-"+st.id);if(!btn)return;
+    const active=st.id===stageId;
+    const hint=i===0?"← next":`skip ${i} stage${i>1?"s":""}`;
+    btn.style.background=active?st.color+"33":"#0a0c12";
+    btn.style.color=active?st.color:"#666";
+    btn.style.border="1px solid "+(active?st.color:"#2a2d3a");
+    btn.innerHTML=`<span>${st.icon} ${st.label}</span><span style="font-size:10px;opacity:0.8;">${active?"✓ selected":hint}</span>`;
+  });
+  document.getElementById("modal-confirm-btn").style.background=stageInfo(stageId).color;
+}
+
+function closeModal(){
+  document.getElementById("move-modal").classList.add("hidden");
+  moveItemId=null;selectedTargetStage=null;
+}
+
+async function doMove(){
+  const qty=Number(document.getElementById("modal-qty").value);
+  if(!qty||qty<=0){alert("Please enter a valid quantity.");return;}
+  if(!selectedTargetStage){alert("Please select a target stage.");return;}
+  const idToMove=moveItemId;
+  const targetStage=selectedTargetStage;
+  const rejects=Number(document.getElementById("modal-reject").value)||0;
+  const note=document.getElementById("modal-note").value.trim();
+  const dateVal=document.getElementById("modal-date").value;
+  const dateISO=dateVal?new Date(dateVal).toISOString():new Date().toISOString();
+
+  const item=items.find(i=>i.id===idToMove);
+  if(!item){alert("Item not found.");return;}
+  const curIdx=STAGE_IDS.indexOf(item.currentStage);
+  const targetIdx=STAGE_IDS.indexOf(targetStage);
+
+  // Build updated stages — mark skipped stages
+  const updatedStages={};
+  // Copy existing stage data preserving dates as strings
+  Object.keys(item.stages||{}).forEach(k=>{
+    const s=item.stages[k];
+    updatedStages[k]={
+      qty:s.qty||0,
+      rejects:s.rejects||0,
+      note:s.note||"",
+      date:s.date?.toDate?s.date.toDate().toISOString():(s.date||dateISO),
+      ...(s.skipped?{skipped:true}:{})
+    };
+  });
+  // Mark skipped stages
+  for(let i=curIdx+1;i<targetIdx;i++){
+    updatedStages[STAGE_IDS[i]]={skipped:true,date:dateISO};
+  }
+  // Set target stage
+  updatedStages[targetStage]={qty,date:dateISO,rejects,note};
+
+  const fb=window._fb;
+  closeModal(); // close before async so IDs are captured above
+  try{
+    showSync(true);
+    await fb.setDoc(fb.doc(fb.db,"items",idToMove),{
+      name:item.name,
+      material:item.material||"",
+      notes:item.notes||"",
+      createdAt:item.createdAt,
+      currentStage:targetStage,
+      stages:updatedStages
+    });
+    await fb.addDoc(fb.collection(fb.db,"log"),{
+      itemId:idToMove,
+      itemName:item.name,
+      from:item.currentStage,
+      to:targetStage,
+      qty, rejects,
+      date:dateISO,
+      note,
+      skipped:targetIdx-curIdx>1
+    });
+  }catch(e){alert("Error saving: "+e.message);showSync(false);}
+}
+
+// ---- Edit Modal ----
+function openEditModal(itemId,stageId){
+  editItemId=itemId;editStageId=stageId;
+  const item=items.find(i=>i.id===itemId);
+  const stage=stageInfo(stageId);
+  const data=item?.stages?.[stageId];
+  if(!data)return;
+  const ds=data.date?.toDate?data.date.toDate().toISOString():data.date;
+  document.getElementById("edit-modal-label").innerHTML=`Editing: <span style="color:${stage.color}">${stage.icon} ${stage.label}</span>`;
+  document.getElementById("edit-qty").value=data.qty||"";
+  document.getElementById("edit-reject").value=data.rejects||"";
+  document.getElementById("edit-note").value=data.note||"";
+  document.getElementById("edit-date").value=ds?ds.slice(0,16):new Date().toISOString().slice(0,16);
+  document.getElementById("edit-confirm-btn").style.background=stage.color;
+  document.getElementById("edit-modal").classList.remove("hidden");
+}
+
+function closeEditModal(){
+  document.getElementById("edit-modal").classList.add("hidden");
+  editItemId=null;editStageId=null;
+}
+
+async function doEdit(){
+  const qty=Number(document.getElementById("edit-qty").value);
+  if(!qty||qty<=0){alert("Please enter a valid quantity.");return;}
+  const idToEdit=editItemId;
+  const stageToEdit=editStageId;
+  const rejects=Number(document.getElementById("edit-reject").value)||0;
+  const note=document.getElementById("edit-note").value.trim();
+  const dateVal=document.getElementById("edit-date").value;
+  const dateISO=dateVal?new Date(dateVal).toISOString():new Date().toISOString();
+
+  const item=items.find(i=>i.id===idToEdit);
+  if(!item){alert("Item not found.");return;}
+
+  // Rebuild all stages as plain objects (no Firestore Timestamps)
+  const updatedStages={};
+  Object.keys(item.stages||{}).forEach(k=>{
+    const s=item.stages[k];
+    updatedStages[k]={
+      qty:s.qty||0,
+      rejects:s.rejects||0,
+      note:s.note||"",
+      date:s.date?.toDate?s.date.toDate().toISOString():(s.date||dateISO),
+      ...(s.skipped?{skipped:true}:{})
+    };
+  });
+  // Override the edited stage
+  updatedStages[stageToEdit]={...updatedStages[stageToEdit],qty,rejects,note,date:dateISO};
+
+  const fb=window._fb;
+  closeEditModal();
+  try{
+    showSync(true);
+    await fb.setDoc(fb.doc(fb.db,"items",idToEdit),{
+      name:item.name,
+      material:item.material||"",
+      notes:item.notes||"",
+      createdAt:item.createdAt,
+      currentStage:item.currentStage,
+      stages:updatedStages
+    });
+  }catch(e){alert("Error saving: "+e.message);showSync(false);}
+}
+
+// ---- Bootstrap ----
+function waitForFirebase(){
+  const fb=window._fb;if(!fb){setTimeout(waitForFirebase,100);return;}
+  fb.onAuthStateChanged(fb.auth,user=>{
+    if(user)onUserLoggedIn();else onUserLoggedOut();
+  });
+  // Force sign out so login screen always shows on page load
+  fb.signOut(fb.auth).catch(()=>{});
+}
+waitForFirebase();
+
+document.addEventListener("keydown",e=>{
+  if(e.key==="Enter"&&!document.getElementById("login-screen").classList.contains("hidden"))doLogin();
+});
+</script>
+</body>
+</html>
